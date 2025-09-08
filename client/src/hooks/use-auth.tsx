@@ -26,11 +26,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     // Mock login - in real app, this would call an API
+    // Determine role based on email for demo purposes
+    let role: UserRole = 'student';
+    
+    if (email.includes('mentor')) {
+      role = 'mentor';
+    } else if (email.includes('alumni')) {
+      role = 'alumni';
+    } else if (email.includes('employer')) {
+      role = 'employer';
+    } else if (email.includes('admin')) {
+      role = 'admin';
+    }
+    
     const mockUser: User = {
       email,
       firstName: 'Sarah',
       lastName: 'Johnson',
-      role: 'student' // Mock role, normally from API
+      role: role
     };
     setUser(mockUser);
   };
