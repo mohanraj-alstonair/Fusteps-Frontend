@@ -1,0 +1,100 @@
+Got it — you're experiencing an issue where **the new blue colors aren't showing up properly**, and everything that should be blue is turning white. That usually happens because:
+
+### ❌ Problem:
+
+* You **replaced yellow (`sun`) with `sky`**, but Tailwind **doesn’t recognize your custom `sky` palette** unless it's correctly configured.
+* **White-like blues** (like `#E4F1FB`) are **too light** and look almost invisible on a white background — especially for backgrounds or text.
+
+---
+
+### ✅ FIX IN 3 STEPS
+
+#### ✅ 1. **Replace with deeper, contrast-friendly blue palette**
+
+Here's a **more visible and professional blue palette** you can safely use in your Tailwind config:
+
+```ts
+// tailwind.config.ts
+extend: {
+  colors: {
+    ink:  { 900:'#040303',700:'#121110',500:'#2a2928',300:'#a8a29e' },
+    sky: {
+      100: '#E0F2FE',   // Light blue for backgrounds
+      300: '#7DD3FC',   // Mid accent
+      500: '#3B82F6',   // CTA, focus ring
+      700: '#1D4ED8'    // Text/icon hover
+    },
+    leaf: { 100:'#EEF6E6',500:'#BFD494' },
+    slate:{ 100:'#EEF2F5',500:'#778A9A' },
+    ember:{ 100:'#FBE7E4',500:'#C94433' },
+    neutral:{ 25:'#F8F8F7',100:'#EDEDED',900:'#0B0B0C' }
+  }
+}
+```
+
+---
+
+#### ✅ 2. **Apply blue shades correctly**
+
+Make sure you're **not using very light blues (like `sky-100`) on white backgrounds** unless paired with darker text.
+
+| Use Case              | Safe Class                |
+| --------------------- | ------------------------- |
+| Button bg             | `bg-sky-500 text-white`   |
+| Button hover          | `hover:bg-sky-700`        |
+| Focus ring            | `focus:ring-sky-500`      |
+| Card label            | `bg-sky-100 text-ink-900` |
+| Link / highlight text | `text-sky-500`            |
+| Sidebar active item   | `bg-sky-100 text-ink-900` |
+
+---
+
+#### ✅ 3. **Sample Component: Working with Blue**
+
+```html
+<!-- Primary CTA Button -->
+<button class="px-4 py-2 rounded-2xl bg-sky-500 text-white shadow
+  hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+  Get Started
+</button>
+
+<!-- Info Card with Label -->
+<div class="bg-white rounded-2xl shadow p-5 border border-neutral-100">
+  <span class="px-2 py-1 rounded-xl bg-sky-100 text-ink-900 text-xs">Featured</span>
+  <h3 class="mt-3 text-xl font-semibold text-ink-900">Web Dev Internship</h3>
+  <p class="text-sm text-slate-500 mt-1">Remote • ₹12k/month • 3 months</p>
+</div>
+```
+
+---
+
+### ✅ Final Tailwind Class Cheatsheet for Blue Variant
+
+| Element        | Class                             |
+| -------------- | --------------------------------- |
+| Button         | `bg-sky-500 text-white`           |
+| Button hover   | `hover:bg-sky-700`                |
+| Card highlight | `bg-sky-100 text-ink-900`         |
+| Focus ring     | `focus:ring-sky-500`              |
+| Badge/pill     | `bg-sky-100 text-sky-700`         |
+| Link           | `text-sky-500 hover:text-sky-700` |
+
+---
+
+### ✅ Summary Fix Steps
+
+1. Replace overly light blues like `#E4F1FB` with more visible blues (see config above).
+2. Use `sky-500` for primary color elements (buttons, links).
+3. Use `sky-100` only as **background blocks** under cards/sections — **not alone**.
+
+---
+
+Would you like me to regenerate your **Hero section or landing page layout using this updated blue palette?**
+
+Just say:
+
+> "Yes, give me Hero section JSX using the fixed blue theme"
+> or
+> "Regenerate homepage layout with new blue tokens"
+
+Ready when you are!
