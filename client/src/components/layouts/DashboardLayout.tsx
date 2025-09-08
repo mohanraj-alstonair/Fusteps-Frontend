@@ -87,8 +87,8 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
           <div className="flex items-center justify-between p-4">
             <div className={`${isSidebarCollapsed ? 'flex justify-center w-full' : ''}`}>
               {isSidebarCollapsed ? (
-                <div className="w-10 h-10 bg-sun-500 rounded-lg flex items-center justify-center">
-                  <span className="text-ink-900 font-bold text-lg">F</span>
+                <div className="w-10 h-10 bg-sky-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">F</span>
                 </div>
               ) : (
                 <div>
@@ -140,7 +140,7 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
                   onClick={() => handleMenuClick(item.path)}
                   className={`sidebar-item w-full flex items-center px-4 py-3 rounded-lg transition-custom ${
                     currentPage === item.id
-                      ? 'bg-sun-100 text-ink-900'
+                      ? 'bg-sky-100 text-ink-900'
                       : 'text-ink-700 hover:bg-neutral-25'
                   }`}
                   data-testid={`nav-${item.id}`}
@@ -200,8 +200,8 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
                     className="flex items-center space-x-2 p-2 text-ink-600 hover:text-ink-900 hover:bg-neutral-25 rounded-lg transition-colors"
                     data-testid="button-profile"
                   >
-                    <div className="w-8 h-8 bg-sun-500 rounded-full flex items-center justify-center">
-                      <span className="text-ink-900 font-medium text-sm">
+                    <div className="w-8 h-8 bg-sky-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-medium text-sm">
                         {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                       </span>
                     </div>

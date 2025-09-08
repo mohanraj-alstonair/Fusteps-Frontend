@@ -59,11 +59,11 @@ export default {
           500: "var(--ink-500)",
           300: "var(--ink-300)",
         },
-        sun: {
-          100: "var(--sun-100)",
-          300: "var(--sun-300)",
-          500: "var(--sun-500)",
-          700: "var(--sun-700)",
+        sky: {
+          100: "var(--sky-100)",
+          300: "var(--sky-300)",
+          500: "var(--sky-500)",
+          700: "var(--sky-700)",
         },
         leaf: {
           100: "var(--leaf-100)",
