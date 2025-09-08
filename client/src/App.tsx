@@ -19,10 +19,10 @@ function AppRouter() {
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
-    if (user && !needsOnboarding && location === "/") {
+    if (user && !needsOnboarding && (location === "/" || location === "")) {
       setLocation(`/dashboard/${user.role}`);
     }
-  }, [user, needsOnboarding, location, setLocation]);
+  }, [user, needsOnboarding, setLocation]); // Removed location from dependencies to prevent infinite loop
 
   if (!user) {
     return <LandingPage />;
@@ -39,7 +39,14 @@ function AppRouter() {
       <Route path="/dashboard/alumni/*" component={AlumniDashboard} />
       <Route path="/dashboard/employer/*" component={EmployerDashboard} />
       <Route path="/dashboard/admin/*" component={AdminDashboard} />
-      <Route path="/" component={() => null} />
+      <Route path="/">
+        {() => {
+          if (user && !needsOnboarding) {
+            setLocation(`/dashboard/${user.role}`);
+          }
+          return null;
+        }}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
