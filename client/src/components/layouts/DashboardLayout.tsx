@@ -100,7 +100,7 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
 
         {/* Main Content */}
         <div className="flex-1">
-          <div className="p-4"></div>
+          <div className="p-4">
             <div className="mb-6">
               <h1 className="text-3xl font-display font-bold text-ink-900 mb-2">{title}</h1>
             </div>
