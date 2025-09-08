@@ -46,7 +46,7 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
         </button>
 
         {/* Sidebar */}
-        <div className={`fixed lg:static inset-y-0 left-0 z-40 w-60 bg-white shadow-card transform transition-transform duration-300 ease-in-out ${
+        <div className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white shadow-card transform transition-transform duration-300 ease-in-out ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}>
           {/* Mobile close button */}
@@ -58,12 +58,12 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
             <X className="w-6 h-6" />
           </button>
 
-          <div className="p-6">
+          <div className="p-4">
             <h1 className="text-2xl font-display font-bold text-ink-900">FuSteps</h1>
             <p className="text-sm text-ink-500 mt-1">{subtitle}</p>
           </div>
           
-          <nav className="px-4 pb-4">
+          <nav className="px-3 pb-4">
             <div className="space-y-1">
               {menuItems.map((item) => (
                 <button
@@ -99,9 +99,9 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 lg:ml-60">
-          <div className="p-6">
-            <div className="mb-8">
+        <div className="flex-1 lg:ml-64">
+          <div className="p-4">
+            <div className="mb-6">
               <h1 className="text-3xl font-display font-bold text-ink-900 mb-2">{title}</h1>
             </div>
             {children}
