@@ -22,7 +22,7 @@ function AppRouter() {
     if (user && !needsOnboarding && (location === "/" || location === "")) {
       setLocation(`/dashboard/${user.role}`);
     }
-  }, [user, needsOnboarding, setLocation]); // Removed location from dependencies to prevent infinite loop
+  }, [user, needsOnboarding, setLocation]);
 
   if (!user) {
     return <LandingPage />;
@@ -44,14 +44,7 @@ function AppRouter() {
       <Route path="/dashboard/employer/*" component={EmployerDashboard} />
       <Route path="/dashboard/admin" component={AdminDashboard} />
       <Route path="/dashboard/admin/*" component={AdminDashboard} />
-      <Route path="/">
-        {() => {
-          if (user && !needsOnboarding) {
-            setLocation(`/dashboard/${user.role}`);
-          }
-          return null;
-        }}
-      </Route>
+      <Route path="/" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
