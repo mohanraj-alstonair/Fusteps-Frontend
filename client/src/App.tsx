@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,6 +16,13 @@ import NotFound from "@/pages/not-found";
 
 function AppRouter() {
   const { user, needsOnboarding } = useAuth();
+  const [location, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (user && !needsOnboarding && location === "/") {
+      setLocation(`/dashboard/${user.role}`);
+    }
+  }, [user, needsOnboarding, location, setLocation]);
 
   if (!user) {
     return <LandingPage />;
@@ -31,13 +39,7 @@ function AppRouter() {
       <Route path="/dashboard/alumni/*" component={AlumniDashboard} />
       <Route path="/dashboard/employer/*" component={EmployerDashboard} />
       <Route path="/dashboard/admin/*" component={AdminDashboard} />
-      <Route path="/">
-        {() => {
-          // Redirect to appropriate dashboard based on role
-          window.location.href = `/dashboard/${user.role}`;
-          return null;
-        }}
-      </Route>
+      <Route path="/" component={() => null} />
       <Route component={NotFound} />
     </Switch>
   );
