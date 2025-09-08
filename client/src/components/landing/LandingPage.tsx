@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { BookOpen, Users, Building, Briefcase, CheckCircle, Star, ArrowRight, Play, Globe, Award, Target, Zap } from 'lucide-react';
 import LoginModal from '../auth/LoginModal';
@@ -45,14 +44,14 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-sun-100 via-white to-leaf-100 min-h-[calc(100vh-4rem)]">
+      <section className="relative bg-gradient-to-br from-sky-100 via-white to-leaf-100 min-h-[calc(100vh-4rem)]">
         <div className="absolute inset-0 bg-white bg-opacity-50"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
           <div className="lg:grid lg:grid-cols-12 lg:gap-8 items-center">
             <div className="lg:col-span-6">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-ink-900 mb-6 leading-tight">
                 Your Career Companion, 
-                <span className="text-transparent bg-gradient-to-r from-sun-500 to-leaf-500 bg-clip-text"> All in One Place</span>
+                <span className="text-transparent bg-gradient-to-r from-sky-500 to-leaf-500 bg-clip-text"> All in One Place</span>
               </h1>
               <p className="text-lg md:text-xl text-ink-700 mb-8 max-w-2xl leading-relaxed">
                 Explore internships, upgrade skills, connect with mentors, and launch your dream career—all from your FuSteps dashboard.
@@ -60,13 +59,13 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <button 
                   onClick={() => setShowRegister(true)}
-                  className="bg-ink-900 text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:opacity-90 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  className="bg-sky-500 text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:opacity-90 transition-all duration-300 transform hover:scale-105 shadow-lg"
                   data-testid="button-get-started"
                 >
                   Get Started Free
                   <ArrowRight className="inline-block ml-2 w-5 h-5" />
                 </button>
-                <button className="bg-white text-ink-900 px-8 py-4 rounded-2xl text-lg font-semibold border-2 border-ink-200 hover:bg-neutral-25 transition-all duration-300 transform hover:scale-105">
+                <button className="bg-white text-sky-600 px-8 py-4 rounded-2xl text-lg font-semibold border-2 border-sky-200 hover:bg-neutral-25 transition-all duration-300 transform hover:scale-105">
                   <Play className="inline-block mr-2 w-5 h-5" />
                   Watch Demo
                 </button>
@@ -84,11 +83,11 @@ export default function LandingPage() {
             </div>
             <div className="lg:col-span-6 mt-10 lg:mt-0">
               <div className="relative">
-                <div className="bg-gradient-to-br from-sun-500 to-leaf-500 rounded-3xl p-1">
+                <div className="bg-gradient-to-br from-sky-500 to-leaf-500 rounded-3xl p-1">
                   <div className="bg-white rounded-3xl p-8 shadow-2xl">
                     <div className="space-y-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-sun-500 rounded-xl flex items-center justify-center">
+                        <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center">
                           <BookOpen className="w-5 h-5 text-ink-900" />
                         </div>
                         <div>
@@ -96,13 +95,13 @@ export default function LandingPage() {
                           <p className="text-sm text-ink-500">Track your career progress</p>
                         </div>
                       </div>
-                      <div className="bg-gradient-to-r from-sun-100 to-leaf-100 rounded-xl p-4">
+                      <div className="bg-gradient-to-r from-sky-100 to-leaf-100 rounded-xl p-4">
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-sm font-medium text-ink-700">Career Progress</span>
                           <span className="text-sm font-bold text-ink-900">75%</span>
                         </div>
                         <div className="w-full bg-neutral-100 rounded-full h-2">
-                          <div className="bg-gradient-to-r from-sun-500 to-leaf-500 h-2 rounded-full w-3/4"></div>
+                          <div className="bg-gradient-to-r from-sky-500 to-leaf-500 h-2 rounded-full w-3/4"></div>
                         </div>
                       </div>
                     </div>
@@ -121,10 +120,10 @@ export default function LandingPage() {
             <h2 className="text-4xl font-display font-bold text-ink-900 mb-4">How FuSteps Works</h2>
             <p className="text-xl text-ink-500 max-w-3xl mx-auto">Get started on your career journey in just a few simple steps</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { step: '01', title: 'Sign Up & Choose Role', description: 'Create your account and select your role: Student, Mentor, Alumni, or Employer', icon: Users, color: 'sun' },
+              { step: '01', title: 'Sign Up & Choose Role', description: 'Create your account and select your role: Student, Mentor, Alumni, or Employer', icon: Users, color: 'sky' },
               { step: '02', title: 'Complete Onboarding', description: 'Tell us about your goals, skills, and preferences to personalize your experience', icon: Target, color: 'leaf' },
               { step: '03', title: 'Explore Opportunities', description: 'Browse internships, courses, mentors, and start building your professional network', icon: Globe, color: 'slate' },
               { step: '04', title: 'Track Your Progress', description: 'Monitor your growth with our comprehensive dashboard and achieve your career goals', icon: Award, color: 'ember' }
@@ -154,20 +153,20 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-24 bg-gradient-to-br from-neutral-25 to-sun-100">
+      <section id="features" className="py-24 bg-gradient-to-br from-neutral-25 to-sky-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-display font-bold text-ink-900 mb-4">Everything You Need to Succeed</h2>
             <p className="text-xl text-ink-500 max-w-3xl mx-auto">Comprehensive tools and resources for every stage of your career journey</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { title: 'Internship Hub', description: 'Discover and apply to top internships from leading companies worldwide', icon: Briefcase, color: 'sun' },
+              { title: 'Internship Hub', description: 'Discover and apply to top internships from leading companies worldwide', icon: Briefcase, color: 'sky' },
               { title: 'Learning Platform', description: 'Access courses, tutorials, and skill assessments to boost your expertise', icon: BookOpen, color: 'leaf' },
               { title: 'Mentor Network', description: 'Connect with industry professionals for personalized guidance and advice', icon: Users, color: 'slate' },
               { title: 'Resume Builder', description: 'Create professional resumes with AI-powered suggestions and templates', icon: Building, color: 'ember' },
-              { title: 'Study Abroad', description: 'Explore international education opportunities and application guidance', icon: Globe, color: 'sun' },
+              { title: 'Study Abroad', description: 'Explore international education opportunities and application guidance', icon: Globe, color: 'sky' },
               { title: 'Progress Tracking', description: 'Monitor your career development with detailed analytics and insights', icon: Award, color: 'leaf' }
             ].map(({ title, description, icon: Icon, color }, index) => (
               <div key={index} className="bg-white rounded-2xl p-8 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl group">
@@ -194,7 +193,7 @@ export default function LandingPage() {
             <div>
               <h2 className="text-4xl font-display font-bold text-ink-900 mb-6">Why Students Choose FuSteps</h2>
               <p className="text-xl text-ink-500 mb-8">Join thousands of students who have accelerated their career growth with our comprehensive platform.</p>
-              
+
               <div className="space-y-6">
                 {[
                   { title: 'Personalized Recommendations', description: 'AI-powered matching for internships, courses, and mentors based on your goals' },
@@ -214,14 +213,14 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-            
+
             <div className="mt-10 lg:mt-0">
               <div className="relative">
-                <div className="bg-gradient-to-br from-leaf-100 to-sun-100 rounded-3xl p-8">
+                <div className="bg-gradient-to-br from-leaf-100 to-sky-100 rounded-3xl p-8">
                   <div className="bg-white rounded-2xl p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-ink-900">Success Metrics</h3>
-                      <Zap className="w-5 h-5 text-sun-500" />
+                      <Zap className="w-5 h-5 text-sky-500" />
                     </div>
                     <div className="space-y-4">
                       <div className="flex justify-between">
@@ -230,7 +229,7 @@ export default function LandingPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-ink-700">Average Skill Improvement</span>
-                        <span className="font-bold text-sun-500">65%</span>
+                        <span className="font-bold text-sky-500">65%</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-ink-700">Student Satisfaction</span>
@@ -252,7 +251,7 @@ export default function LandingPage() {
             <h2 className="text-4xl font-display font-bold text-ink-900 mb-4">Success Stories</h2>
             <p className="text-xl text-ink-500">Hear from students who transformed their careers with FuSteps</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               { name: 'Sarah Chen', role: 'Software Engineer', company: 'Microsoft', quote: 'FuSteps helped me land my dream internship at Microsoft. The mentor support was incredible!', avatar: '👩‍💻', rating: 5 },
@@ -262,7 +261,7 @@ export default function LandingPage() {
               <div key={index} className="bg-white rounded-2xl p-8 shadow-lg transition-all duration-300 hover:scale-105">
                 <div className="flex items-center mb-4">
                   {[...Array(rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-sun-500 fill-current" />
+                    <Star key={i} className="w-5 h-5 text-sky-500 fill-current" />
                   ))}
                 </div>
                 <p className="text-ink-700 mb-6 italic leading-relaxed">"{quote}"</p>
@@ -280,7 +279,7 @@ export default function LandingPage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-24 bg-gradient-to-br from-sun-100 to-leaf-100">
+      <section className="py-24 bg-gradient-to-br from-sky-100 to-leaf-100">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-display font-bold text-ink-900 mb-6">
             Ready to Level Up Your Career?
