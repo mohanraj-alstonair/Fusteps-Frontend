@@ -140,7 +140,7 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
                   onClick={() => handleMenuClick(item.path)}
                   className={`sidebar-item w-full flex items-center px-4 py-3 rounded-lg transition-custom ${
                     currentPage === item.id
-                      ? 'bg-sky-100 text-ink-900'
+                      ? 'bg-sky-100 text-sky-700 font-medium'
                       : 'text-ink-700 hover:bg-neutral-25'
                   }`}
                   data-testid={`nav-${item.id}`}
