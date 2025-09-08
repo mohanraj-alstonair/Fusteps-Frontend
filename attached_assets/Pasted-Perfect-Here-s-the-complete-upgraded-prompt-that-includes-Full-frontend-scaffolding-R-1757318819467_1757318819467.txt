@@ -1,0 +1,237 @@
+Perfect. Here's the **complete, upgraded prompt** that includes:
+
+* Full frontend scaffolding
+* Role-based dashboards
+* Student onboarding flow
+* **AND** auto-generation of every **menu page** for each dashboard with routing + placeholders.
+
+This is a **React + Tailwind** implementation-ready prompt. You can give this to ChatGPT (GPT-4 or GPT-4o), and it will start generating a modular frontend with routing, layouts, and UI components following your **FuSteps Design System**.
+
+---
+
+### ✅ **FINAL MASTER PROMPT: Full FuSteps Frontend with All Dashboard Pages**
+
+````prompt
+You are a frontend developer assistant. I want to generate a full React + TailwindCSS frontend app scaffold for a multi-role platform called **FuSteps**. Follow these specs:
+
+---
+
+## 🧱 SYSTEM GOALS
+
+- Build full frontend architecture using:
+  - React (with Hooks)
+  - React Router for navigation
+  - TailwindCSS (custom theme provided)
+- Include:
+  - Top bar with **Login** and **Register**
+  - Auth pages (with role selection during register)
+  - Redirect after login based on role
+  - Role-based dashboard for:
+    - Student
+    - Mentor
+    - Alumni
+    - Employer
+    - Admin
+  - After Student registers, show a 3-step onboarding flow
+  - Include sidebar with active link highlighting
+  - **Generate all dashboard menu pages** (per role) as placeholders with titles + sections
+
+---
+
+## 🔑 AUTH FLOW
+
+- `/login` and `/register` pages
+- On register, show a dropdown to choose role:
+  `Student`, `Mentor`, `Alumni`, `Employer`, `Admin`
+- After login/register:
+  - If role = `Student`, go to `/onboarding` (3 steps below)
+  - If role ≠ Student, go directly to `/dashboard/{role}`
+
+---
+
+## 🧑‍🎓 STUDENT ONBOARDING FLOW
+
+Multi-step form after registering as Student:
+
+**Step 1:** Career preference → `Job`, `Internship`, `Skill Upgrade`, `Startup Idea` (radio buttons)  
+**Step 2:** Education, skills, goals (text fields, multi-select)  
+**Step 3:** Resume upload, profile completeness bar  
+→ After this, go to `/dashboard/student`
+
+---
+
+## 🔀 ROUTES
+
+```bash
+/
+├── /login
+├── /register
+├── /onboarding (only for students)
+├── /dashboard/student
+├── /dashboard/mentor
+├── /dashboard/alumni
+├── /dashboard/employer
+├── /dashboard/admin
+````
+
+Use **React Router** with **nested routing** and role-based redirects. Setup `DashboardLayout.jsx` and use it across all dashboards.
+
+---
+
+## 📂 FOLDER STRUCTURE
+
+* `pages/` → route components
+* `pages/student/` → all Student menu pages
+* `pages/mentor/` → Mentor pages
+* `pages/employer/` → Employer pages
+* `pages/alumni/` → Alumni pages
+* `pages/admin/` → Admin pages
+* `components/` → reusable components
+* `layouts/` → shared layouts
+* `hooks/` → auth/context helpers
+* `theme/` → tailwind.config.js and design tokens
+
+---
+
+## 📚 MENU MAP PER DASHBOARD (GENERATE ALL PAGES BELOW)
+
+For each dashboard, create all menu pages as components, add routing, and placeholder layout:
+
+### ✅ Student Dashboard
+
+* `Internships.jsx`
+* `Courses.jsx`
+* `Mentors.jsx`
+* `Projects.jsx`
+* `Library.jsx`
+* `StudyAbroad.jsx`
+* `JobTools.jsx`
+* `Notifications.jsx`
+* `Profile.jsx`
+
+### ✅ Mentor Dashboard
+
+* `Today.jsx`
+* `Mentees.jsx`
+* `Calendar.jsx`
+* `Sessions.jsx`
+* `Feedback.jsx`
+* `Resources.jsx`
+* `Earnings.jsx`
+* `Settings.jsx`
+
+### ✅ Alumni Dashboard
+
+* `Overview.jsx`
+* `Mentor.jsx`
+* `PostOpportunity.jsx`
+* `Events.jsx`
+* `Community.jsx`
+* `Impact.jsx`
+* `Profile.jsx`
+
+### ✅ Employer Dashboard
+
+* `Postings.jsx`
+* `Applicants.jsx`
+* `Interviews.jsx`
+* `Messages.jsx`
+* `Analytics.jsx`
+* `CompanyProfile.jsx`
+* `Billing.jsx`
+
+### ✅ Admin Dashboard
+
+* `Users.jsx`
+* `Approvals.jsx`
+* `Analytics.jsx`
+* `Reports.jsx`
+* `Announcements.jsx`
+* `AuditLogs.jsx`
+* `Settings.jsx`
+
+Each page should:
+
+* Be inside its respective role folder (`pages/student/Internships.jsx`, etc.)
+* Use `DashboardLayout`
+* Include placeholder `<h1>` with page name
+* Include sample section or card component
+* Sidebar should highlight the active page
+
+---
+
+## 🎨 DESIGN SYSTEM — FUSTEPS THEME
+
+Apply this custom Tailwind theme:
+
+```ts
+// tailwind.config.ts
+export default {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        ink:  { 900:'#040303',700:'#121110',500:'#2a2928',300:'#a8a29e' },
+        sun:  { 100:'#FFFBE2',300:'#F9F0AD',500:'#F4EA91',700:'#D9CD62' },
+        leaf: { 100:'#EEF6E6',300:'#D9EAC3',500:'#BFD494',700:'#99B36F' },
+        slate:{ 100:'#EEF2F5',300:'#BFC9D1',500:'#778A9A',700:'#53606B' },
+        ember:{ 100:'#FBE7E4',300:'#EEA59A',500:'#C94433',700:'#983326' },
+        neutral:{ 25:'#F8F8F7',100:'#EDEDED',900:'#0B0B0C' }
+      },
+      borderRadius: { '2xl':'1rem' },
+      boxShadow: {
+        card:'0 6px 24px rgba(0,0,0,.06)',
+        modal:'0 12px 40px rgba(0,0,0,.16)'
+      },
+      fontFamily: { display:['Poppins','Inter','ui-sans-serif'], body:['Inter','system-ui'] }
+    }
+  }
+}
+```
+
+**UI Guidelines:**
+
+* Primary button: `bg-ink-900`, `text-white`, hover opacity, focus ring `sun-500`
+* Secondary: `bg-sun-100`, `text-ink-900`, hover `sun-300`
+* Cards: `bg-white`, `rounded-2xl`, shadow `card`, borders `neutral-100`
+* Inputs: border `slate-300`, focus ring `sun-500`, error = `ember-500`
+* Motion: 180–220ms transitions, ease-out on entry, ease-in on exit
+
+---
+
+## 📦 OUTPUT EXPECTATIONS
+
+✅ Output:
+
+* File/folder structure
+* Login/Register/Auth flow
+* Student onboarding pages
+* Routing setup
+* Sidebar layout for each role
+* All menu pages with placeholder UI
+* Tailwind styles applied using FuSteps theme
+
+Use clean JSX, Tailwind utility classes, modular components, and route wrappers. Don't write backend logic—use mock login state.
+
+```
+
+---
+
+### 🧠 How to use this prompt:
+Paste it directly into ChatGPT (GPT-4 / GPT-4o), and then follow up with:
+
+> "Generate the folder structure and `App.jsx` + `Router.jsx` setup first."
+
+Then ask it to generate code **section by section** (e.g., Login page, then Student Dashboard pages, etc.).
+
+---
+
+Let me know if you'd like a **follow-up prompt** for:
+
+- Connecting this to a backend API (Node/Express or Firebase)  
+- Generating mock JSON data for each role  
+- Adding role-based protected routes  
+- Exporting everything as a Vite/Next.js project structure
+
+I can generate that next.
+```
