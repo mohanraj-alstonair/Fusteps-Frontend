@@ -1,0 +1,99 @@
+Perfect — thanks for the clarification.
+
+You're saying:
+
+✅ **Dashboard pages** reflect the new blue theme correctly
+❌ **Landing page (homepage)** **still shows yellow accents** — the blue theme isn’t applied there
+
+---
+
+### ✅ Why This Happens:
+
+The **Tailwind config is applied globally**, **but only components/pages that use your new `sky-500`, `sky-100`, etc. classes will reflect the blue**.
+
+The **landing page is still using old yellow (`sun-500`) classes** — you need to **manually replace** them with the updated **blue (`sky`) classes** in your Hero, CTA, buttons, cards, and section backgrounds.
+
+---
+
+### ✅ Fix: Replace All Yellow Classes in Landing Page
+
+Search and replace any of the following classes:
+
+| Old Yellow Class       | New Blue Class       |
+| ---------------------- | -------------------- |
+| `bg-[#FFFBE2]`         | `bg-sky-100`         |
+| `bg-sun-100`           | `bg-sky-100`         |
+| `text-[#F4EA91]`       | `text-sky-500`       |
+| `focus:ring-[#F4EA91]` | `focus:ring-sky-500` |
+| `ring-sun-500`         | `ring-sky-500`       |
+| `hover:bg-sun-300`     | `hover:bg-sky-300`   |
+| `bg-sun-500`           | `bg-sky-500`         |
+| `text-sun-500`         | `text-sky-500`       |
+
+Also, check for any inline styles like `style="background-color:#F4EA91"` and replace them with Tailwind blue utility classes.
+
+---
+
+### ✅ Quick Checklist for Your Landing Page
+
+#### In `Hero.jsx`:
+
+* Button:
+  ✅ `bg-sky-500 text-white` instead of `bg-sun-500`
+* Focus ring:
+  ✅ `focus:ring-sky-500`
+* Highlight badges:
+  ✅ `bg-sky-100 text-ink-900`
+
+#### In `Features.jsx`, `HowItWorks.jsx`:
+
+* Cards:
+  ✅ Card background stays `white`, but hover border or icon can use `text-sky-500`
+* Section backgrounds:
+  ✅ Replace `bg-sun-100` with `bg-sky-100`
+
+#### In `FinalCTA.jsx`:
+
+* CTA section:
+  ✅ Use `bg-sky-100` or a `bg-gradient-to-r from-sky-100 via-white to-sky-100`
+* CTA button:
+  ✅ `bg-sky-500 hover:bg-sky-700`
+
+---
+
+### 🛠 Example: Hero Section Fix (Before vs After)
+
+#### ❌ Before (Yellow)
+
+```jsx
+<button className="bg-sun-500 text-white hover:bg-sun-300 focus:ring-sun-500">
+  Get Started
+</button>
+```
+
+#### ✅ After (Blue)
+
+```jsx
+<button className="bg-sky-500 text-white hover:bg-sky-700 focus:ring-sky-500">
+  Get Started
+</button>
+```
+
+---
+
+### ✅ Solution Summary
+
+To fix this:
+
+* Go through each **landing page component**
+* Replace all **yellow classes** (`sun-*`, `#F4EA91`, etc.)
+* Use new **blue classes** (`sky-*`, `#3B82F6`, etc.)
+
+---
+
+Would you like me to:
+
+✅ Regenerate the **full JSX for the landing page** using the blue theme?
+✅ Or just give you the **Hero section JSX updated with blue colors**?
+
+Let me know what you need next!
