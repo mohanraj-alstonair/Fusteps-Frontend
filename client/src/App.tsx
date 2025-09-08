@@ -34,10 +34,15 @@ function AppRouter() {
 
   return (
     <Switch>
+      <Route path="/dashboard/student" component={StudentDashboard} />
       <Route path="/dashboard/student/*" component={StudentDashboard} />
+      <Route path="/dashboard/mentor" component={MentorDashboard} />
       <Route path="/dashboard/mentor/*" component={MentorDashboard} />
+      <Route path="/dashboard/alumni" component={AlumniDashboard} />
       <Route path="/dashboard/alumni/*" component={AlumniDashboard} />
+      <Route path="/dashboard/employer" component={EmployerDashboard} />
       <Route path="/dashboard/employer/*" component={EmployerDashboard} />
+      <Route path="/dashboard/admin" component={AdminDashboard} />
       <Route path="/dashboard/admin/*" component={AdminDashboard} />
       <Route path="/">
         {() => {
