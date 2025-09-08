@@ -85,30 +85,51 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
           
           {/* Sidebar Header */}
           <div className="flex items-center justify-between p-4">
-            {!isSidebarCollapsed && (
-              <div>
-                <h1 className="text-2xl font-display font-bold text-ink-900">FuSteps</h1>
-                <p className="text-sm text-ink-500 mt-1">{subtitle}</p>
-              </div>
-            )}
+            <div className={`${isSidebarCollapsed ? 'flex justify-center w-full' : ''}`}>
+              {isSidebarCollapsed ? (
+                <div className="w-10 h-10 bg-sun-500 rounded-lg flex items-center justify-center">
+                  <span className="text-ink-900 font-bold text-lg">F</span>
+                </div>
+              ) : (
+                <div>
+                  <h1 className="text-2xl font-display font-bold text-ink-900">FuSteps</h1>
+                  <p className="text-sm text-ink-500 mt-1">{subtitle}</p>
+                </div>
+              )}
+            </div>
             
-            {/* Desktop collapse button */}
-            <button 
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="hidden lg:block text-ink-500 hover:text-ink-700 p-1"
-              data-testid="button-collapse-sidebar"
-            >
-              {isSidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-            </button>
+            {!isSidebarCollapsed && (
+              <>
+                {/* Desktop collapse button */}
+                <button 
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  className="hidden lg:block text-ink-500 hover:text-ink-700 p-1"
+                  data-testid="button-collapse-sidebar"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
 
-            {/* Mobile close button */}
-            <button 
-              onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden text-ink-500 hover:text-ink-700"
-              data-testid="button-close-sidebar"
-            >
-              <X className="w-6 h-6" />
-            </button>
+                {/* Mobile close button */}
+                <button 
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="lg:hidden text-ink-500 hover:text-ink-700"
+                  data-testid="button-close-sidebar"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </>
+            )}
+
+            {/* Collapse button when sidebar is collapsed */}
+            {isSidebarCollapsed && (
+              <button 
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                className="hidden lg:block absolute top-4 right-2 text-ink-500 hover:text-ink-700 p-1"
+                data-testid="button-expand-sidebar"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
           </div>
           
           <nav className="px-3 pb-4">
@@ -138,17 +159,7 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
               ))}
             </div>
             
-            <div className="mt-8 pt-8 border-t border-neutral-100">
-              <button 
-                onClick={handleLogout}
-                className="sidebar-item w-full flex items-center px-4 py-3 rounded-lg text-ember-600 hover:bg-ember-50 transition-custom"
-                data-testid="button-logout"
-                title={isSidebarCollapsed ? 'Logout' : ''}
-              >
-                <LogOut className="w-5 h-5 flex-shrink-0" />
-                {!isSidebarCollapsed && <span className="ml-3">Logout</span>}
-              </button>
-            </div>
+            
           </nav>
         </div>
 
