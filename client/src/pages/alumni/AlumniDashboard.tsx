@@ -8,6 +8,7 @@ import Events from "./Events";
 import Community from "./Community";
 import Impact from "./Impact";
 import AlumniProfile from "./AlumniProfile";
+import AlumniSettings from "./Settings";
 
 const menuItems = [
   { id: 'overview', label: 'Overview', icon: <BarChart3 />, path: '/dashboard/alumni' },
@@ -109,6 +110,18 @@ export default function AlumniDashboard() {
             currentPage={getCurrentPage(window.location.pathname)}
           >
             <AlumniProfile />
+          </DashboardLayout>
+        )}
+      </Route>
+      <Route path="/dashboard/alumni/settings">
+        {() => (
+          <DashboardLayout
+            title="Settings"
+            subtitle="Alumni Dashboard"
+            menuItems={menuItems}
+            currentPage={getCurrentPage(window.location.pathname)}
+          >
+            <AlumniSettings />
           </DashboardLayout>
         )}
       </Route>

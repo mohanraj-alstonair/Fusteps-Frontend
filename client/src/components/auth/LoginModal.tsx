@@ -11,14 +11,76 @@ interface LoginModalProps {
 export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'student' | 'mentor' | 'admin' | 'alumni'>('student');
+  const [mentorName, setMentorName] = useState('');
+  const [mentorExpertise, setMentorExpertise] = useState('');
+  const [mentorExperienceYears, setMentorExperienceYears] = useState(0);
+  const [mentorDegree, setMentorDegree] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isMentorSelected, setIsMentorSelected] = useState(false);
   const { login } = useAuth();
 
   if (!isOpen) return null;
 
+  const handleRoleChange = (selectedRole: 'student' | 'mentor' | 'admin' | 'alumni') => {
+    setRole(selectedRole);
+    setIsMentorSelected(selectedRole === 'mentor');
+    if (selectedRole !== 'mentor') {
+      setMentorName('');
+      setMentorExpertise('');
+      setMentorExperienceYears(0);
+      setMentorDegree('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
+    if (!email || !password) return;
+
+    if (role === 'mentor') {
+      if (!mentorName || !mentorExpertise || !mentorExperienceYears || !mentorDegree) {
+        alert('Please provide all mentor details: name, expertise, years of experience, and degree.');
+        return;
+      }
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/mentors/login/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            email, 
+            name: mentorName, 
+            expertise: mentorExpertise,
+            experience_years: mentorExperienceYears,
+            degree: mentorDegree
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Login failed');
+        console.log('Mentor login successful:', result);
+        await login(email, password); // Mock general login
+        onClose();
+      } catch (err) {
+        console.error('Mentor login error:', err);
+        alert(`Failed to login as mentor: ${(err as Error).message}`);
+      }
+    } else if (role === 'student') {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/students/login/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Login failed');
+        console.log('Student login successful:', result);
+        await login(email, password); // Mock general login
+        onClose();
+      } catch (err) {
+        console.error('Student login error:', err);
+        alert(`Failed to login as student: ${(err as Error).message}`);
+      }
+    } else {
+      // For other roles, use mock login
       await login(email, password);
       onClose();
     }
@@ -51,6 +113,71 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
               required
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-ink-700 mb-2">Role</label>
+            <select 
+              value={role}
+              onChange={(e) => handleRoleChange(e.target.value as 'student' | 'mentor' | 'admin' | 'alumni')}
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sun-500 focus:border-transparent transition-custom"
+              required
+            >
+              <option value="student">Student</option>
+              <option value="mentor">Mentor</option>
+              <option value="admin">Admin</option>
+              <option value="alumni">Alumni</option>
+            </select>
+          </div>
+
+          {isMentorSelected && (
+            <>
+              <div>
+                <label className="block text-sm font-semibold text-ink-700 mb-2">Full Name (Mentor)</label>
+                <input 
+                  type="text"
+                  value={mentorName}
+                  onChange={(e) => setMentorName(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sun-500 focus:border-transparent transition-custom" 
+                  placeholder="Your full name"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-ink-700 mb-2">Expertise/Skill</label>
+                <input 
+                  type="text"
+                  value={mentorExpertise}
+                  onChange={(e) => setMentorExpertise(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sun-500 focus:border-transparent transition-custom" 
+                  placeholder="e.g., AI Development, Software Engineering"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-ink-700 mb-2">Years of Experience</label>
+                <input 
+                  type="number"
+                  value={mentorExperienceYears}
+                  onChange={(e) => setMentorExperienceYears(parseInt(e.target.value) || 0)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sun-500 focus:border-transparent transition-custom" 
+                  placeholder="e.g., 5"
+                  min="0"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-ink-700 mb-2">Degree</label>
+                <input 
+                  type="text"
+                  value={mentorDegree}
+                  onChange={(e) => setMentorDegree(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sun-500 focus:border-transparent transition-custom" 
+                  placeholder="e.g., M.Tech, PhD"
+                  required
+                />
+              </div>
+            </>
+          )}
           
           <div>
             <label className="block text-sm font-semibold text-ink-700 mb-2">Password</label>

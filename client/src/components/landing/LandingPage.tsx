@@ -1,11 +1,14 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { BookOpen, Users, Building, Briefcase, CheckCircle, Star, ArrowRight, Play, Globe, Award, Target, Zap } from 'lucide-react';
 import LoginModal from '../auth/LoginModal';
 import RegisterModal from '../auth/RegisterModal';
+import fustepsLogo from '../../assets/fusteps-logo.png';
 
 export default function LandingPage() {
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [, setLocation] = useLocation();
 
   return (
     <div className="min-h-screen bg-neutral-25 font-body">
@@ -15,24 +18,24 @@ export default function LandingPage() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-2xl font-display font-bold text-ink-900">FuSteps</h1>
+                <img src={fustepsLogo} alt="FuSteps Logo" className="h-10 w-auto" />
               </div>
               <div className="hidden md:ml-10 md:flex space-x-8">
-                <a href="#features" className="text-ink-700 hover:text-ink-900 px-3 py-2 text-sm font-medium transition-all duration-300">Features</a>
-                <a href="#how-it-works" className="text-ink-700 hover:text-ink-900 px-3 py-2 text-sm font-medium transition-all duration-300">How It Works</a>
-                <a href="#testimonials" className="text-ink-700 hover:text-ink-900 px-3 py-2 text-sm font-medium transition-all duration-300">Success Stories</a>
+                <a href="#features" className="menu-item text-ink-700 px-3 py-2 text-sm font-medium">Features</a>
+                <a href="#how-it-works" className="menu-item text-ink-700 px-3 py-2 text-sm font-medium">How It Works</a>
+                <a href="#testimonials" className="menu-item text-ink-700 px-3 py-2 text-sm font-medium">Success Stories</a>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <button 
-                onClick={() => setShowLogin(true)}
-                className="text-ink-700 hover:text-ink-900 px-3 py-2 rounded-lg transition-all duration-300"
+                onClick={() => setLocation('/login')}
+                className="menu-item text-ink-700 px-3 py-2 rounded-lg"
                 data-testid="button-login"
               >
                 Login
               </button>
               <button 
-                onClick={() => setShowRegister(true)}
+                onClick={() => setLocation('/signup')}
                 className="bg-ink-900 text-white px-4 py-2 rounded-2xl hover:opacity-90 transition-all duration-300 font-semibold"
                 data-testid="button-register"
               >
@@ -58,7 +61,7 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <button 
-                  onClick={() => setShowRegister(true)}
+                  onClick={() => setLocation('/signup')}
                   className="bg-sky-500 text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:opacity-90 transition-all duration-300 transform hover:scale-105 shadow-lg"
                   data-testid="button-get-started"
                 >
@@ -288,7 +291,7 @@ export default function LandingPage() {
             Join thousands of students who are already building their dream careers with FuSteps.
           </p>
           <button 
-            onClick={() => setShowRegister(true)}
+            onClick={() => setLocation('/signup')}
             className="bg-ink-900 text-white px-10 py-5 rounded-2xl text-xl font-semibold hover:opacity-90 transition-all duration-300 transform hover:scale-105 shadow-xl"
           >
             Join FuSteps Today

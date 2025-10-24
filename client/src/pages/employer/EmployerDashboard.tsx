@@ -8,6 +8,7 @@ import Messages from "./Messages";
 import Analytics from "./Analytics";
 import CompanyProfile from "./CompanyProfile";
 import Billing from "./Billing";
+import EmployerSettings from "./Settings";
 
 const menuItems = [
   { id: 'postings', label: 'Postings', icon: <FileText />, path: '/dashboard/employer' },
@@ -109,6 +110,18 @@ export default function EmployerDashboard() {
             currentPage={getCurrentPage(window.location.pathname)}
           >
             <Billing />
+          </DashboardLayout>
+        )}
+      </Route>
+      <Route path="/dashboard/employer/settings">
+        {() => (
+          <DashboardLayout
+            title="Settings"
+            subtitle="Employer Dashboard"
+            menuItems={menuItems}
+            currentPage={getCurrentPage(window.location.pathname)}
+          >
+            <EmployerSettings />
           </DashboardLayout>
         )}
       </Route>

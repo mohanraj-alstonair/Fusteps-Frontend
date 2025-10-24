@@ -36,10 +36,10 @@
   --ink-500: hsl(29, 3%, 16%);
   --ink-300: hsl(30, 3%, 66%);
   
-  --sky-100: hsl(199, 89%, 94%);
-  --sky-300: hsl(199, 89%, 76%);
-  --sky-500: hsl(217, 91%, 60%);
-  --sky-700: hsl(221, 83%, 53%);
+  --sky-100: hsl(210, 50%, 85%);
+  --sky-300: hsl(210, 70%, 70%);
+  --sky-500: hsl(210, 93.5%, 53.5%);
+  --sky-700: hsl(210, 93.5%, 35%);
   
   --leaf-100: hsl(104, 36%, 92%);
   --leaf-300: hsl(103, 35%, 83%);
@@ -59,6 +59,24 @@
   --neutral-25: hsl(40, 11%, 97%);
   --neutral-100: hsl(0, 0%, 93%);
   --neutral-900: hsl(240, 6%, 4%);
+
+  --sun-100: hsl(48, 100%, 96%);
+  --sun-300: hsl(48, 100%, 70%);
+  --sun-500: hsl(48, 100%, 50%);
+  --sun-600: hsl(48, 100%, 40%);
+  --sun-700: hsl(48, 100%, 30%);
+
+  /* FuSteps Logo Theme Colors */
+  --fusteps-red: #E94B3C;
+  --fusteps-red-hover: #C0392B;
+  --fusteps-blue: #4A90E2;
+  --fusteps-blue-hover: #3A78C2;
+  --fusteps-yellow: #F5E663;
+  --fusteps-yellow-hover: #E6D94A;
+  --fusteps-green: #7ED957;
+  --fusteps-green-hover: #5CBF35;
+  --fusteps-black: #000000;
+
 }
 
 .dark {
@@ -86,6 +104,12 @@
   --chart-3: hsl(30, 80%, 55%);
   --chart-4: hsl(280, 65%, 60%);
   --chart-5: hsl(340, 75%, 55%);
+
+  /* FuSteps Custom Colors - Dark Mode */
+  --sky-100: hsl(210, 50%, 90%);
+  --sky-300: hsl(210, 70%, 75%);
+  --sky-500: hsl(210, 93.5%, 58%);
+  --sky-700: hsl(210, 93.5%, 40%);
 }
 
 @layer base {
@@ -109,6 +133,15 @@
   
   .transition-custom {
     transition: all 200ms ease-out;
+  }
+  
+  .menu-item {
+    transition: all 300ms ease-out;
+  }
+  
+  .menu-item:hover {
+    color: hsl(210, 93.5%, 53.5%);
+    transform: translateY(-1px);
   }
   
   .sidebar-item {
@@ -142,8 +175,25 @@
     transform: translateX(-100%);
     transition: transform 300ms ease-in-out;
   }
-  
+
   .sidebar-mobile.open {
     transform: translateX(0);
   }
+}
+
+/* Calendar event day styling */
+.event-day {
+  position: relative;
+}
+
+.event-day::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background-color: var(--fusteps-red);
+  border-radius: 50%;
 }

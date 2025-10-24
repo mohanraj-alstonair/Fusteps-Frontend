@@ -1,5 +1,5 @@
-import { Switch, Route } from "wouter";
-import { Calendar, BookOpen, Users, FolderOpen, Library as LibraryIcon, Globe, Settings, Bell, User } from "lucide-react";
+import { Switch, Route, useLocation } from "wouter";
+import { Calendar, BookOpen, Users, FolderOpen, Library as LibraryIcon, Globe, Settings as SettingsIcon, User } from "lucide-react";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import Internships from "./Internships";
 import Courses from "./Courses";
@@ -10,6 +10,9 @@ import StudyAbroad from "./StudyAbroad";
 import JobTools from "./JobTools";
 import Notifications from "./Notifications";
 import Profile from "./Profile";
+import StudentSettings from "./Settings";
+import { CalendarModal } from "../../components/ui/CalendarModal";
+import { useState } from "react";
 
 const menuItems = [
   { id: 'overview', label: 'Overview', icon: <Calendar />, path: '/dashboard/student' },
@@ -19,19 +22,36 @@ const menuItems = [
   { id: 'projects', label: 'Projects', icon: <FolderOpen />, path: '/dashboard/student/projects' },
   { id: 'library', label: 'Library', icon: <LibraryIcon />, path: '/dashboard/student/library' },
   { id: 'study-abroad', label: 'Study Abroad', icon: <Globe />, path: '/dashboard/student/study-abroad' },
-  { id: 'job-tools', label: 'Job Tools', icon: <Settings />, path: '/dashboard/student/job-tools' },
-  { id: 'notifications', label: 'Notifications', icon: <Bell />, path: '/dashboard/student/notifications' },
-  { id: 'profile', label: 'Profile', icon: <User />, path: '/dashboard/student/profile' },
+  { id: 'job-tools', label: 'Job Tools', icon: <SettingsIcon />, path: '/dashboard/student/job-tools' },
 ];
 
 function StudentOverview() {
+  const [, setLocation] = useLocation();
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  const events = [
+    { title: 'Career Fair 2024', from: new Date('2024-04-15T10:00:00'), to: new Date('2024-04-15T12:00:00') },
+    { title: 'Mentoring Session', from: new Date('2024-04-18T14:00:00'), to: new Date('2024-04-18T15:00:00') },
+    { title: 'React Workshop', from: new Date('2024-04-22T18:00:00'), to: new Date('2024-04-22T20:00:00') }
+  ];
+
+  const handleViewAll = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setLocation('/dashboard/student/internships');
+  };
+
+  const handleViewCalendar = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsCalendarOpen(true);
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <p className="text-ink-500 mb-8">Here's what's happening with your career journey.</p>
-      
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-2xl shadow-card p-6">
+        <div className="bg-white rounded-2xl shadow-card p-6 border-l-4 border-sun-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-ink-500 text-sm">Applications</p>
@@ -42,8 +62,8 @@ function StudentOverview() {
             </div>
           </div>
         </div>
-        
-        <div className="bg-white rounded-2xl shadow-card p-6">
+
+        <div className="bg-white rounded-2xl shadow-card p-6 border-l-4 border-leaf-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-ink-500 text-sm">Interviews</p>
@@ -54,8 +74,8 @@ function StudentOverview() {
             </div>
           </div>
         </div>
-        
-        <div className="bg-white rounded-2xl shadow-card p-6">
+
+        <div className="bg-white rounded-2xl shadow-card p-6 border-l-4 border-slate-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-ink-500 text-sm">Courses</p>
@@ -66,8 +86,8 @@ function StudentOverview() {
             </div>
           </div>
         </div>
-        
-        <div className="bg-white rounded-2xl shadow-card p-6">
+
+        <div className="bg-white rounded-2xl shadow-card p-6 border-l-4 border-ember-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-ink-500 text-sm">Profile Score</p>
@@ -79,15 +99,15 @@ function StudentOverview() {
           </div>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Applications */}
         <div className="bg-white rounded-2xl shadow-card p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-display font-semibold text-ink-900">Recent Applications</h3>
-            <a href="#" className="text-sun-700 hover:text-sun-900 text-sm font-semibold">View All</a>
+            <button onClick={handleViewAll} className="text-sun-700 hover:text-sun-900 text-sm font-semibold">View All</button>
           </div>
-          
+
           <div className="space-y-4">
             {[
               { title: 'Frontend Developer', company: 'TechCorp Inc.', status: 'In Review', statusColor: 'sun' },
@@ -96,47 +116,45 @@ function StudentOverview() {
             ].map((app, index) => (
               <div key={index} className="flex items-center justify-between p-4 border border-neutral-100 rounded-xl hover:bg-neutral-25 transition-custom">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-neutral-100 rounded-lg"></div>
+                  <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-600 font-semibold text-sm">{app.company.charAt(0)}</span>
+                  </div>
                   <div>
                     <h4 className="font-semibold text-ink-900" data-testid={`text-job-title-${index}`}>{app.title}</h4>
                     <p className="text-sm text-ink-500" data-testid={`text-company-${index}`}>{app.company}</p>
                   </div>
                 </div>
-                <span className={`bg-${app.statusColor}-100 text-${app.statusColor}-800 text-xs px-2 py-1 rounded-full`} data-testid={`status-${index}`}>
+                <span className={`${app.statusColor === 'sun' ? 'bg-yellow-100 text-yellow-800' : app.statusColor === 'leaf' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} text-xs px-2 py-1 rounded-full`} data-testid={`status-${index}`}>
                   {app.status}
                 </span>
               </div>
             ))}
           </div>
         </div>
-        
+
         {/* Upcoming Events */}
         <div className="bg-white rounded-2xl shadow-card p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-display font-semibold text-ink-900">Upcoming Events</h3>
-            <a href="#" className="text-sun-700 hover:text-sun-900 text-sm font-semibold">View Calendar</a>
+            <button onClick={handleViewCalendar} className="text-sun-700 hover:text-sun-900 text-sm font-semibold">View Calendar</button>
           </div>
-          
+
           <div className="space-y-4">
-            {[
-              { date: '15', title: 'Career Fair 2024', time: 'Virtual Event • 10:00 AM', description: 'Meet top employers and explore opportunities' },
-              { date: '18', title: 'Mentoring Session', time: 'With John Smith • 2:00 PM', description: 'Resume review and interview tips' },
-              { date: '22', title: 'React Workshop', time: 'Online Course • 6:00 PM', description: 'Advanced React patterns and hooks' }
-            ].map((event, index) => (
+            {events.map((event, index) => (
               <div key={index} className="flex items-start space-x-4 p-4 border border-neutral-100 rounded-xl hover:bg-neutral-25 transition-custom">
-                <div className="w-12 h-12 bg-sun-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-sun-800">{event.date}</span>
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-bold text-blue-800">{new Date(event.from).getDate()}</span>
                 </div>
                 <div>
                   <h4 className="font-semibold text-ink-900" data-testid={`text-event-title-${index}`}>{event.title}</h4>
-                  <p className="text-sm text-ink-500" data-testid={`text-event-time-${index}`}>{event.time}</p>
-                  <p className="text-xs text-ink-300 mt-1">{event.description}</p>
+                  <p className="text-sm text-ink-500" data-testid={`text-event-time-${index}`}>{event.from.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
       </div>
+      <CalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} events={events} />
     </div>
   );
 }
@@ -267,6 +285,18 @@ export default function StudentDashboard() {
             currentPage={getCurrentPage(window.location.pathname)}
           >
             <Profile />
+          </DashboardLayout>
+        )}
+      </Route>
+      <Route path="/dashboard/student/settings">
+        {() => (
+          <DashboardLayout
+            title="Account Settings"
+            subtitle="Student Dashboard"
+            menuItems={menuItems}
+            currentPage={getCurrentPage(window.location.pathname)}
+          >
+            <StudentSettings />
           </DashboardLayout>
         )}
       </Route>
