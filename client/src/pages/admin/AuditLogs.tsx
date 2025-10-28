@@ -1,15 +1,28 @@
-import { useState, useEffect } from 'react';
-import { Shield, Search, Filter, Download, Eye, AlertTriangle, CheckCircle, XCircle, Clock, User, Settings, FileText, Users, Megaphone } from 'lucide-react';
+/*  AuditLogs.tsx  –  No TS errors, dummy data, working search  */
+import { useState, useEffect, useMemo } from 'react';
+import {
+  Shield, Search, Download, Eye, AlertTriangle, CheckCircle, XCircle,
+  Clock, User, Settings, FileText, Users, Megaphone,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { api, withRole } from '@/lib/api';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+// import { api, withRole } from '@/lib/api'; // ← Uncomment when API is ready
 
+/* ------------------------------------------------------------------ */
+/*  Types & Icons                                                    */
+/* ------------------------------------------------------------------ */
 interface AuditLog {
   id: number;
   timestamp: string;
@@ -27,23 +40,75 @@ interface AuditLog {
 }
 
 const actionIcons = {
-  'user_created': Users,
-  'user_updated': Users,
-  'user_deleted': Users,
-  'user_suspended': Shield,
-  'user_activated': CheckCircle,
-  'announcement_created': Megaphone,
-  'announcement_updated': Megaphone,
-  'announcement_deleted': Megaphone,
-  'announcement_published': Megaphone,
-  'report_generated': FileText,
-  'settings_updated': Settings,
-  'login': User,
-  'logout': User,
-  'password_changed': Shield,
-  'permission_changed': Shield
+  user_created: Users,
+  user_updated: Users,
+  user_deleted: Users,
+  user_suspended: Shield,
+  user_activated: CheckCircle,
+  announcement_created: Megaphone,
+  announcement_updated: Megaphone,
+  announcement_deleted: Megaphone,
+  announcement_published: Megaphone,
+  report_generated: FileText,
+  settings_updated: Settings,
+  login: User,
+  logout: User,
+  password_changed: Shield,
+  permission_changed: Shield,
 };
 
+/* ------------------------------------------------------------------ */
+/*  Dummy data generator                                             */
+/* ------------------------------------------------------------------ */
+const generateDummyLogs = (): AuditLog[] => {
+  const actions = Object.keys(actionIcons);
+  const statuses: AuditLog['status'][] = ['success', 'failure', 'warning'];
+  const severities: AuditLog['severity'][] = ['low', 'medium', 'high', 'critical'];
+  const users = [
+    { id: 1, name: 'Alice Johnson', role: 'admin' },
+    { id: 2, name: 'Bob Smith', role: 'moderator' },
+    { id: 3, name: 'Carol Lee', role: 'admin' },
+    { id: 4, name: 'David Brown', role: 'user' },
+  ];
+
+  const logs: AuditLog[] = [];
+
+  for (let i = 1; i <= 120; i++) {
+    const user = users[Math.floor(Math.random() * users.length)];
+    const action = actions[Math.floor(Math.random() * actions.length)];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const severity = severities[Math.floor(Math.random() * severities.length)];
+
+    const now = Date.now();
+    const past = now - Math.random() * 30 * 24 * 60 * 60 * 1000;
+    const timestamp = new Date(past).toISOString();
+
+    logs.push({
+      id: i,
+      timestamp,
+      user_id: user.id,
+      user_name: user.name,
+      user_role: user.role,
+      action,
+      resource: action.startsWith('user') ? 'user' :
+               action.includes('announcement') ? 'announcement' :
+               action.includes('settings') ? 'settings' : 'report',
+      resource_id: Math.random() > 0.5 ? Math.floor(Math.random() * 999) : undefined,
+      details: `Performed ${action.replace('_', ' ')} on resource #${Math.floor(Math.random() * 999)}.`,
+      ip_address: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+      user_agent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+      status,
+      severity,
+    });
+  }
+
+  return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+};
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                        */
+/* ------------------------------------------------------------------ */
 export default function AuditLogs() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,78 +118,77 @@ export default function AuditLogs() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
+  /* ---------------------------------------------------------------- */
+  /*  Load dummy data on mount                                        */
+  /* ---------------------------------------------------------------- */
   useEffect(() => {
-    fetchAuditLogs();
+    const dummyLogs = generateDummyLogs();
+    setLogs(dummyLogs);
+    setLoading(false);
+
+    // === UNCOMMENT BELOW WHEN API IS READY ===
+    // fetchAuditLogs().then(data => {
+    //   setLogs(data);
+    //   setLoading(false);
+    // });
   }, []);
 
-  const fetchAuditLogs = async () => {
-    try {
-      const response = await api.get("/admin/audit-logs", withRole("admin"));
-      setLogs(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error('Error fetching audit logs:', error);
-      setLogs([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  /* ---------------------------------------------------------------- */
+  /*  Filtering – memoised for performance                           */
+  /* ---------------------------------------------------------------- */
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const matchesSearch =
+        log.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.resource.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.details.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const exportLogs = () => {
-    // Implementation for exporting audit logs
-    console.log('Exporting audit logs...');
-  };
+      const matchesSeverity = filterSeverity === 'all' || log.severity === filterSeverity;
+      const matchesAction = filterAction === 'all' || log.action === filterAction;
 
-  const filteredLogs = logs.filter(log => {
-    const matchesSearch = log.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.resource.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.details.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch && matchesSeverity && matchesAction;
+    });
+  }, [logs, searchTerm, filterSeverity, filterAction]);
 
-    const matchesSeverity = filterSeverity === 'all' || log.severity === filterSeverity;
-    const matchesAction = filterAction === 'all' || log.action === filterAction;
-
-    return matchesSearch && matchesSeverity && matchesAction;
-  });
-
+  /* ---------------------------------------------------------------- */
+  /*  UI helpers                                                      */
+  /* ---------------------------------------------------------------- */
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'success':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Success</Badge>;
-      case 'failure':
-        return <Badge variant="destructive">Failure</Badge>;
-      case 'warning':
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Warning</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+      case 'success': return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Success</Badge>;
+      case 'failure': return <Badge variant="destructive">Failure</Badge>;
+      case 'warning': return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Warning</Badge>;
+      default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
-      case 'critical':
-        return <Badge variant="destructive">Critical</Badge>;
-      case 'high':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">High</Badge>;
-      case 'medium':
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Medium</Badge>;
-      case 'low':
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Low</Badge>;
-      default:
-        return <Badge variant="secondary">{severity}</Badge>;
+      case 'critical': return <Badge variant="destructive">Critical</Badge>;
+      case 'high': return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">High</Badge>;
+      case 'medium': return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Medium</Badge>;
+      case 'low': return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Low</Badge>;
+      default: return <Badge variant="secondary">{severity}</Badge>;
     }
   };
 
   const getActionIcon = (action: string) => {
-    const IconComponent = actionIcons[action as keyof typeof actionIcons] || FileText;
-    return <IconComponent className="w-4 h-4" />;
+    const Icon = actionIcons[action as keyof typeof actionIcons] ?? FileText;
+    return <Icon className="w-4 h-4" />;
   };
 
-  const formatAction = (action: string) => {
-    return action.split('_').map(word =>
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
+  const formatAction = (action: string) =>
+    action.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+  const exportLogs = () => {
+    console.log('Exporting audit logs...');
+    // TODO: implement CSV export
   };
 
+  /* ---------------------------------------------------------------- */
+  /*  Render                                                          */
+  /* ---------------------------------------------------------------- */
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading audit logs...</div>;
   }
@@ -206,15 +270,16 @@ export default function AuditLogs() {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   placeholder="Search logs by user, action, or details..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
+
             <Select value={filterSeverity} onValueChange={setFilterSeverity}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by severity" />
@@ -227,25 +292,25 @@ export default function AuditLogs() {
                 <SelectItem value="low">Low</SelectItem>
               </SelectContent>
             </Select>
+
             <Select value={filterAction} onValueChange={setFilterAction}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by action" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Actions</SelectItem>
-                <SelectItem value="user_created">User Created</SelectItem>
-                <SelectItem value="user_updated">User Updated</SelectItem>
-                <SelectItem value="user_deleted">User Deleted</SelectItem>
-                <SelectItem value="announcement_created">Announcement Created</SelectItem>
-                <SelectItem value="login">Login</SelectItem>
-                <SelectItem value="settings_updated">Settings Updated</SelectItem>
+                {Object.keys(actionIcons).map(act => (
+                  <SelectItem key={act} value={act}>
+                    {formatAction(act)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Audit Logs Table */}
+      {/* Table */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
@@ -264,7 +329,7 @@ export default function AuditLogs() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLogs.slice(0, 50).map((log) => (
+              {filteredLogs.slice(0, 50).map(log => (
                 <TableRow key={log.id}>
                   <TableCell className="text-sm text-gray-500">
                     <div className="flex items-center gap-2">
@@ -321,7 +386,7 @@ export default function AuditLogs() {
         </CardContent>
       </Card>
 
-      {/* Log Details Modal */}
+      {/* Details Modal */}
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -330,6 +395,7 @@ export default function AuditLogs() {
               Audit Log Details
             </DialogTitle>
           </DialogHeader>
+
           {selectedLog && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
@@ -347,7 +413,9 @@ export default function AuditLogs() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">Resource</Label>
-                  <p className="text-sm">{selectedLog.resource} {selectedLog.resource_id && `#${selectedLog.resource_id}`}</p>
+                  <p className="text-sm">
+                    {selectedLog.resource} {selectedLog.resource_id && `#${selectedLog.resource_id}`}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">Status</Label>

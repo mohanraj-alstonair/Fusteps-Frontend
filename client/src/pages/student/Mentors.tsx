@@ -592,7 +592,7 @@ export default function StudentMentorsPage() {
       ...feedback,
       mentorName: mentor?.name || 'Unknown Mentor',
       mentorAvatar: mentor?.avatar || 'https://placehold.co/80x80',
-      sessionTopic: session?.topic || 'General Mentorship',
+      sessionTopic: session?.topic || mentor?.title || 'Mentor',
       sessionDate: session?.date || new Date().toISOString(),
     };
   });

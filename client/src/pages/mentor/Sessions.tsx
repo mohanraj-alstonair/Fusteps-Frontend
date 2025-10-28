@@ -127,8 +127,13 @@ export default function Sessions() {
                          session.menteeName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || session.status === statusFilter;
     const matchesType = typeFilter === 'all' || session.type === typeFilter;
+    
+    const sessionDateTime = new Date(`${session.date}T${session.startTime}`);
+    const now = new Date();
+    const isUpcoming = sessionDateTime > now;
+    
     const matchesTab = activeTab === 'all' ||
-                      (activeTab === 'upcoming' && ['scheduled', 'accepted'].includes(session.status)) ||
+                      (activeTab === 'upcoming' && ['scheduled', 'accepted'].includes(session.status) && isUpcoming) ||
                       (activeTab === 'completed' && session.status === 'completed') ||
                       (activeTab === 'cancelled' && ['cancelled', 'rejected'].includes(session.status));
     return matchesSearch && matchesStatus && matchesType && matchesTab;
