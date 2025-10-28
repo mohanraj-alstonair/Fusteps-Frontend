@@ -64,7 +64,7 @@ interface Session {
   notes?: string;
 }
 
-/* ---------- BentoCard (no external link needed) ---------- */
+/* ---------- BentoCard ---------- */
 interface BentoCardProps {
   children: React.ReactNode;
   height?: string;
@@ -274,10 +274,10 @@ export default function MentorCalendar() {
   }, []);
 
   /* ----- helpers ----- */
-  const sessionsForDate = (d: Date) =>
-    sessions.filter((s) => s.date === format(d, "yyyy-MM-dd"));
+  const sessionsForDate = (dateStr: string) =>
+    sessions.filter((s) => s.date === dateStr);
 
-  const selectedSessions = sessionsForDate(selectedDate);
+  const selectedSessions = sessionsForDate(format(selectedDate, "yyyy-MM-dd"));
 
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
@@ -291,15 +291,27 @@ export default function MentorCalendar() {
     return map[s] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
-  /* ----- schedule ----- */
+  /* ----- MAX 5 SESSIONS PER DAY VALIDATION ----- */
+  const MAX_SESSIONS_PER_DAY = 5;
+
   const handleSchedule = async () => {
-    if (!scheduleForm.bookingId || !scheduleForm.scheduledDate || !scheduleForm.scheduledTime) {
-      alert("Fill all required fields");
+    const { bookingId, scheduledDate, scheduledTime } = scheduleForm;
+
+    if (!bookingId || !scheduledDate || !scheduledTime) {
+      alert("Please fill all required fields: Student, Date, and Time.");
       return;
     }
+
+    // Check if already 5 sessions on this date
+    const existingSessionsOnDate = sessionsForDate(scheduledDate);
+    if (existingSessionsOnDate.length >= MAX_SESSIONS_PER_DAY) {
+      alert("Maximum 5 sessions allowed per day. Please select another date.");
+      return;
+    }
+
     try {
-      const dt = `${scheduleForm.scheduledDate}T${scheduleForm.scheduledTime}:00Z`;
-      await scheduleSession(scheduleForm.bookingId, {
+      const dt = `${scheduledDate}T${scheduledTime}:00Z`;
+      await scheduleSession(bookingId, {
         scheduled_date_time: dt,
         meeting_link: scheduleForm.meetingLink || null,
         meeting_id: scheduleForm.meetingId || null,
@@ -315,9 +327,9 @@ export default function MentorCalendar() {
         meetingId: "",
         passcode: "",
       });
-      alert("Session scheduled!");
+      alert("Session scheduled successfully!");
     } catch (e: any) {
-      alert(e.response?.data?.error || e.message || "Failed");
+      alert(e.response?.data?.error || e.message || "Failed to schedule session.");
     }
   };
 

@@ -137,6 +137,10 @@ export default function Sessions() {
                       (activeTab === 'completed' && session.status === 'completed') ||
                       (activeTab === 'cancelled' && ['cancelled', 'rejected'].includes(session.status));
     return matchesSearch && matchesStatus && matchesType && matchesTab;
+  }).sort((a, b) => {
+    const dateTimeA = new Date(`${a.date}T${a.startTime}`);
+    const dateTimeB = new Date(`${b.date}T${b.startTime}`);
+    return dateTimeA.getTime() - dateTimeB.getTime();
   });
 
   const viewSessionDetails = (session: Session) => {
@@ -146,7 +150,11 @@ export default function Sessions() {
 
   const totalSessions = sessions.length;
   const completedSessions = sessions.filter(s => s.status === 'completed').length;
-  const upcomingSessions = sessions.filter(s => s.status === 'scheduled').length;
+  const upcomingSessions = sessions.filter(s => {
+    const sessionDateTime = new Date(`${s.date}T${s.startTime}`);
+    const now = new Date();
+    return ['scheduled', 'accepted'].includes(s.status) && sessionDateTime > now;
+  }).length;
   const avgRating = sessions.filter(s => s.rating).reduce((acc, s) => acc + (s.rating || 0), 0) /
                    sessions.filter(s => s.rating).length || 0;
 

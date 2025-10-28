@@ -189,7 +189,6 @@ export default function Feedback() {
                       </Avatar>
                       <div>
                         <h4 className="font-semibold text-gray-900 text-lg">{feedback.menteeName}</h4>
-                        <p className="text-sm text-gray-500">{feedback.sessionTopic}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
