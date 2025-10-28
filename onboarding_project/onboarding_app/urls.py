@@ -34,5 +34,5 @@ urlpatterns = [
     path('accepted-bookings/', views.get_accepted_bookings, name='get_accepted_bookings'),
     path('submit-feedback/', views.submit_feedback, name='submit_feedback'),
     path('mentor/feedback/', views.get_mentor_feedback, name='get_mentor_feedback'),
-    path('feedback/<int:feedback_id>/respond/', views.respond_to_feedback, name='respond_to_feedback'),
+    path('submit-mentor-feedback/', views.submit_mentor_feedback, name='submit_mentor_feedback'),
 ]

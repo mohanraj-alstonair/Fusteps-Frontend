@@ -1,10 +1,10 @@
-# Notification Fixes TODO
+# TODO: Modify Mentor Feedback in Mentees Tab
 
-- [x] Modify `use-notifications.tsx` to mark student sessions as `unread: true` and include them in `unreadCount`
-- [x] Add `markAsRead` function in `use-notifications.tsx` to set all notifications as read, set `unreadCount` to 0, and filter notifications to only show unread ones
-- [x] Update `DashboardLayout.tsx` to call `markAsRead` when the notifications dropdown is opened
-- [x] Test notification counts for students (messages + sessions) and mentors (bookings + connections)
-- [x] Verify notifications disappear after viewing the dropdown
-- [x] Add message notifications for mentors in `use-notifications.tsx`
-- [x] Add persistence for read status using localStorage
-- [x] Add 15-second auto-close timer for notification dropdown in `DashboardLayout.tsx`
+## Tasks
+- [x] Add mentorFeedbacks state (Record<string, { rating: number; review: string }>)
+- [x] Fetch mentor feedbacks on mount using getMentorFeedback API
+- [x] Modify openFeedbackModal to set isViewMode based on existing feedback
+- [x] Add isViewMode state to feedback modal
+- [x] Update feedback modal UI for view/edit modes
+- [x] Update submitFeedback to update mentorFeedbacks state after submission
+- [x] Test view/edit functionality

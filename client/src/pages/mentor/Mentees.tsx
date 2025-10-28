@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,20 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { listMentorRequests, updateRequestStatus, sendMessage, createChatWebSocket, getAcceptedMentees, getConversation, getMentorBookingRequests, acceptBooking, rejectBooking, getAcceptedBookings } from '@/lib/api';
+import {
+  listMentorRequests,
+  updateRequestStatus,
+  sendMessage,
+  createChatWebSocket,
+  getAcceptedMentees,
+  getConversation,
+  getMentorBookingRequests,
+  acceptBooking,
+  rejectBooking,
+  getAcceptedBookings,
+  submitMentorFeedback,
+  getMentorFeedback
+} from '@/lib/api';
 import {
   MessageSquare,
   Calendar,
@@ -26,7 +38,8 @@ import {
   CheckCircle2,
   XCircle,
   Lock,
-  Trash2
+  Trash2,
+  Star
 } from 'lucide-react';
 
 interface Mentee {
@@ -57,21 +70,7 @@ interface Mentee {
   recentActivity: string[];
 }
 
-interface Session {
-  id: string;
-  menteeId: string;
-  menteeName: string;
-  topic: string;
-  date: string;
-  startTime: string;
-  duration: number;
-  status: 'completed' | 'scheduled' | 'cancelled';
-  notes?: string;
-  rating?: number;
-  meetingLink?: string;
-  meetingId?: string;
-  passcode?: string;
-}
+
 
 interface MenteeRequest {
   id: number;
@@ -102,9 +101,7 @@ export default function Mentees() {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [selectedMenteeForMessage, setSelectedMenteeForMessage] = useState<Mentee | null>(null);
-  const [messageForm, setMessageForm] = useState({
-    message: ''
-  });
+  const [messageForm, setMessageForm] = useState({ message: '' });
   const [menteeRequests, setMenteeRequests] = useState<MenteeRequest[]>([]);
   const [bookingRequests, setBookingRequests] = useState<any[]>([]);
   const [acceptedBookings, setAcceptedBookings] = useState<any[]>([]);
@@ -113,12 +110,22 @@ export default function Mentees() {
   const [mentees, setMentees] = useState<Mentee[]>([]);
   const [unreadMessages, setUnreadMessages] = useState<{ [key: string]: number }>({});
 
+  // Feedback Modal State
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [selectedMenteeForFeedback, setSelectedMenteeForFeedback] = useState<Mentee | null>(null);
+  const [feedbackForm, setFeedbackForm] = useState({
+    rating: 0,
+    review: '',
+  });
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [mentorFeedbacks, setMentorFeedbacks] = useState<Record<string, { rating: number; review: string }>>({});
+
   useEffect(() => {
     const getMentorId = () => {
-      let mentorId = localStorage.getItem('mentorId') || 
-                    localStorage.getItem('userId') || 
+      let mentorId = localStorage.getItem('mentorId') ||
+                    localStorage.getItem('userId') ||
                     localStorage.getItem('user_id');
-      
+
       if (!mentorId) {
         const userData = localStorage.getItem('user');
         if (userData) {
@@ -130,7 +137,7 @@ export default function Mentees() {
           }
         }
       }
-      
+
       return mentorId || '5';
     };
 
@@ -138,12 +145,10 @@ export default function Mentees() {
       try {
         const mentorId = getMentorId();
         console.log('Using mentor ID:', mentorId);
-        
-        // Fetch requests
+
         const requestsResponse = await listMentorRequests(parseInt(mentorId));
         setMenteeRequests(requestsResponse.data);
-        
-        // Fetch accepted mentees
+
         const menteesResponse = await getAcceptedMentees(parseInt(mentorId));
         const acceptedMentees = menteesResponse.data.map((mentee: any) => ({
           id: mentee.id.toString(),
@@ -170,11 +175,9 @@ export default function Mentees() {
         }));
         setMentees(acceptedMentees);
 
-        // Fetch booking requests
         const bookingResponse = await getMentorBookingRequests(parseInt(mentorId));
         setBookingRequests(bookingResponse.data);
 
-        // Fetch accepted bookings (includes scheduled sessions)
         const acceptedBookingsResponse = await getAcceptedBookings(parseInt(mentorId));
         const mappedBookings = acceptedBookingsResponse.data.map((booking: any) => {
           const dateTime = booking.scheduled_date_time || booking.preferred_date_time;
@@ -187,28 +190,36 @@ export default function Mentees() {
         });
         setAcceptedBookings(mappedBookings);
 
-        // Fetch unread message counts for each mentee
         const unreadCounts: { [key: string]: number } = {};
         for (const mentee of acceptedMentees) {
           const conversation = await getConversation(parseInt(mentee.id), parseInt(mentorId));
-          const unread = conversation.data.messages.filter((msg: any) => 
+          const unread = conversation.data.messages.filter((msg: any) =>
             msg.sender_type === 'mentee' && !msg.is_read
           ).length;
           unreadCounts[mentee.id] = unread;
         }
         setUnreadMessages(unreadCounts);
-        
+
+        // Fetch mentor feedbacks
+        const feedbackResponse = await getMentorFeedback(parseInt(mentorId));
+        const feedbackMap: Record<string, { rating: number; review: string }> = {};
+        feedbackResponse.data.forEach((feedback: any) => {
+          feedbackMap[feedback.student_id.toString()] = {
+            rating: feedback.mentor_ratings,
+            review: feedback.mentor_feedback
+          };
+        });
+        setMentorFeedbacks(feedbackMap);
+
       } catch (err) {
         console.error('Error fetching data:', err);
       }
     };
-    
+
     fetchData();
     const interval = setInterval(fetchData, 5000);
 
-    return () => {
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -222,7 +233,6 @@ export default function Mentees() {
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
           setMessages(sortedMessages);
-          // Mark messages as read when the modal is opened
           setUnreadMessages(prev => ({
             ...prev,
             [selectedMenteeForMessage.id]: 0
@@ -283,6 +293,47 @@ export default function Mentees() {
   const openMessageModal = (mentee: Mentee) => {
     setSelectedMenteeForMessage(mentee);
     setShowMessageModal(true);
+  };
+
+  const openFeedbackModal = (mentee: Mentee) => {
+    setSelectedMenteeForFeedback(mentee);
+    const existingFeedback = mentorFeedbacks[mentee.id];
+    if (existingFeedback) {
+      setFeedbackForm({ rating: existingFeedback.rating, review: existingFeedback.review });
+      setIsViewMode(true);
+    } else {
+      setFeedbackForm({ rating: 0, review: '' });
+      setIsViewMode(false);
+    }
+    setShowFeedbackModal(true);
+  };
+
+  const submitFeedback = async () => {
+    if (!selectedMenteeForFeedback || feedbackForm.rating === 0) return;
+
+    try {
+      const mentorId = parseInt(localStorage.getItem('mentorId') || localStorage.getItem('userId') || '5');
+
+      await submitMentorFeedback({
+        mentor_id: mentorId,
+        student_id: parseInt(selectedMenteeForFeedback.id),
+        mentor_ratings: feedbackForm.rating,
+        mentor_feedback: feedbackForm.review,
+      });
+
+      console.log('Mentor feedback submitted successfully');
+
+      // Update mentorFeedbacks state after submission
+      setMentorFeedbacks(prev => ({
+        ...prev,
+        [selectedMenteeForFeedback.id]: { rating: feedbackForm.rating, review: feedbackForm.review }
+      }));
+
+      setShowFeedbackModal(false);
+      setFeedbackForm({ rating: 0, review: '' });
+    } catch (err) {
+      console.error('Error submitting mentor feedback:', err);
+    }
   };
 
   const sendMessageToMentee = async () => {
@@ -402,6 +453,30 @@ export default function Mentees() {
   const avgProgress = mentees.length > 0 ? Math.round(mentees.reduce((acc, m) => acc + m.progress.overall, 0) / mentees.length) : 0;
   const pendingRequests = menteeRequests.filter(req => req.status === 'pending').length;
   const pendingBookingRequests = bookingRequests.filter((req: any) => req.status === 'pending').length;
+
+  // Star Rating Component
+  const StarRating = ({ rating, onChange }: { rating: number; onChange?: (v: number) => void }) => {
+    return (
+      <div className="flex space-x-1">
+        {[1, 2, 3, 4, 5].map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onChange?.(value)}
+            className="focus:outline-none transition-colors"
+          >
+            <Star
+              className={`w-6 h-6 ${
+                value <= rating
+                  ? 'fill-yellow-400 text-yellow-400'
+                  : 'text-gray-300'
+              } hover:text-yellow-400`}
+            />
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -557,6 +632,16 @@ export default function Mentees() {
                         </span>
                       )}
                     </Button>
+                    {/* Feedback Button */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                      onClick={() => openFeedbackModal(mentee)}
+                    >
+                      <Star className="w-4 h-4 mr-2" />
+                      Feedback
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -564,13 +649,17 @@ export default function Mentees() {
           </div>
         </TabsContent>
 
+        {/* === Sessions, Goals, Requests, Booking Tabs (unchanged) === */}
+        {/* ... [Rest of your tabs remain exactly the same] ... */}
+        {/* (You can keep the rest of your TabsContent as-is) */}
+
         <TabsContent value="sessions" className="space-y-6">
           <div className="mb-6">
             <h2 className="text-2xl font-semibold text-gray-900">Session History</h2>
           </div>
           <div className="space-y-4">
             {acceptedBookings.filter((session: any) => {
-              const sessionDateTime = new Date(session.scheduled_date_time || session.preferred_date_time);
+              const sessionDateTime = new Date(session.scheduled_date_time || session.preferred230_date_time);
               const now = new Date();
               return sessionDateTime >= now || session.status === 'completed';
             }).map((session: any) => (
@@ -844,6 +933,7 @@ export default function Mentees() {
         </TabsContent>
       </Tabs>
 
+      {/* === Message Modal === */}
       <Dialog open={showMessageModal} onOpenChange={setShowMessageModal}>
         <DialogContent className="max-w-md w-full max-h-[90vh] h-[600px] p-0 flex flex-col">
           <div className="bg-green-600 text-white p-4 flex items-center space-x-3 flex-shrink-0">
@@ -930,6 +1020,64 @@ export default function Mentees() {
         </DialogContent>
       </Dialog>
 
+      {/* === Feedback Modal === */}
+      <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
+        <DialogContent className="max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-yellow-400" />
+              {isViewMode ? 'View Feedback' : 'Give Feedback'} – {selectedMenteeForFeedback?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="flex flex-col items-center">
+              <label className="mb-2 text-sm font-medium text-gray-700">
+                Rating <span className="text-red-500">*</span>
+              </label>
+              <StarRating
+                rating={feedbackForm.rating}
+                onChange={isViewMode ? undefined : (v) => setFeedbackForm(p => ({ ...p, rating: v }))}
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                {feedbackForm.rating} / 5 stars
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Review
+              </label>
+              <Textarea
+                placeholder="Write your feedback..."
+                rows={4}
+                value={feedbackForm.review}
+                onChange={isViewMode ? undefined : (e) => setFeedbackForm(p => ({ ...p, review: e.target.value }))}
+                disabled={isViewMode}
+              />
+            </div>
+
+            <div className="flex space-x-2">
+              <Button
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                onClick={isViewMode ? () => setIsViewMode(false) : submitFeedback}
+                disabled={!isViewMode && feedbackForm.rating === 0}
+              >
+                {isViewMode ? 'Edit Feedback' : 'Submit Feedback'}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowFeedbackModal(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Add Goal Modal === */}
       <Dialog open={showAddGoal} onOpenChange={setShowAddGoal}>
         <DialogContent className="max-w-md w-full">
           <DialogHeader>
@@ -979,6 +1127,7 @@ export default function Mentees() {
         </DialogContent>
       </Dialog>
 
+      {/* === Mentee Details Modal === */}
       <Dialog open={showMenteeDetails} onOpenChange={setShowMenteeDetails}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>

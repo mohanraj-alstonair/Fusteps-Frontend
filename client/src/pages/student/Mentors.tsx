@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import { createConnectionRequest, listStudentConnections, sendMessage, getMentors, getConnectionStatus, createChatWebSocket, getConversation, bookSession, getStudentSessions, submitFeedback } from "@/lib/api";
@@ -24,8 +24,10 @@ import {
   UserPlus,
   Grid3X3,
   List,
-  Lock
+  Lock,
+  BarChart3
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Mentor {
   id: string;
@@ -69,6 +71,8 @@ interface Feedback {
   mentorId: string;
   rating: number;
   review: string;
+  mentorRating?: number;
+  mentorReview?: string;
 }
 
 export default function StudentMentorsPage() {
@@ -142,8 +146,6 @@ export default function StudentMentorsPage() {
       }
       const [datePart, timePart] = isoString.split('T');
       const time = timePart ? timePart.substring(0, 5) : '00:00';
-      const istDate = date.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-      console.log(`Input ISO: ${isoString}, Formatted Date: ${datePart}, Formatted Time: ${time}, IST Date: ${istDate}`);
       return { date: datePart, time };
     } catch (err) {
       console.error(`Error formatting date/time for ${isoString}:`, err);
@@ -171,7 +173,7 @@ export default function StudentMentorsPage() {
           reviewCount: mentor.feedback ? 1 : 0,
           availability: 'unavailable',
           bio: 'No bio available',
-          experience: Number(mentor.experience_years) || 0,
+          experience: Number(mentor.experience_years) || Number(mentor.experience) || 0,
           education: mentor.education_level || 'Not specified',
           languages: [],
           hourlyRate: undefined,
@@ -199,6 +201,7 @@ export default function StudentMentorsPage() {
         const studentId = parseInt(localStorage.getItem('studentId') || '6');
         const connections = await listStudentConnections(studentId).then(res => res.data);
         setPrevConnections(prev => {
+
           connections.forEach((conn: any) => {
             const prevConn = prev.find(p => p.id === conn.id);
             if (prevConn && prevConn.status === 'pending' && conn.status === 'accepted') {
@@ -221,13 +224,15 @@ export default function StudentMentorsPage() {
           }
           return { ...m, requestStatus: 'none' };
         }));
-        // Set feedback data from connections
+        // Set feedback data from connections (only mentor feedback to student)
         setFeedbacks(connections
-          .filter((conn: any) => conn.status === 'accepted' && conn.feedback_submitted)
+          .filter((conn: any) => conn.status === 'accepted' && conn.mentor_ratings)
           .map((conn: any) => ({
             mentorId: conn.mentor.toString(),
-            rating: Number(conn.ratings),
-            review: conn.feedback
+            rating: Number(conn.mentor_ratings),
+            review: conn.mentor_feedback || '',
+            mentorRating: undefined,
+            mentorReview: undefined
           }))
         );
       } catch (err) {
@@ -461,18 +466,6 @@ export default function StudentMentorsPage() {
       };
       await submitFeedback(feedbackData);
 
-      // Update local state
-      setFeedbacks((prev) => {
-        const existingFeedbackIndex = prev.findIndex((f) => f.mentorId === selectedMentorForFeedback.id);
-        let updatedFeedbacks = [...prev];
-        if (existingFeedbackIndex >= 0) {
-          updatedFeedbacks[existingFeedbackIndex] = { mentorId: selectedMentorForFeedback.id, ...feedbackForm };
-        } else {
-          updatedFeedbacks.push({ mentorId: selectedMentorForFeedback.id, ...feedbackForm });
-        }
-        return updatedFeedbacks;
-      });
-
       // Update mentor rating and reviewCount
       setMentors((prev) =>
         prev.map((mentor) => {
@@ -591,6 +584,33 @@ export default function StudentMentorsPage() {
     setShowScheduleModal(true);
   };
 
+  // === FEEDBACK TAB DATA ===
+  const feedbackWithDetails = feedbacks.map(feedback => {
+    const mentor = mentors.find(m => m.id === feedback.mentorId);
+    const session = sessions.find(s => s.mentorId === feedback.mentorId && s.status === 'completed');
+    return {
+      ...feedback,
+      mentorName: mentor?.name || 'Unknown Mentor',
+      mentorAvatar: mentor?.avatar || 'https://placehold.co/80x80',
+      sessionTopic: session?.topic || 'General Mentorship',
+      sessionDate: session?.date || new Date().toISOString(),
+    };
+  });
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`w-4 h-4 ${i < rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
+      />
+    ));
+  };
+
+  const ratingData = [5, 4, 3, 2, 1].map(rating => ({
+    rating,
+    count: feedbacks.filter(f => f.rating === rating).length
+  }));
+
   if (loading) {
     return <div className="text-center p-6">Loading mentors...</div>;
   }
@@ -609,13 +629,15 @@ export default function StudentMentorsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="browse">Browse Mentors</TabsTrigger>
-          <TabsTrigger value="sessions">My Sessions</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="browse">Browse</TabsTrigger>
+          <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="favorites">Favorites</TabsTrigger>
+          <TabsTrigger value="feedback">Feedback</TabsTrigger>
         </TabsList>
 
+        {/* BROWSE TAB */}
         <TabsContent value="browse" className="space-y-6">
           <Card>
             <CardContent className="p-6">
@@ -675,7 +697,6 @@ export default function StudentMentorsPage() {
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-4 mb-4">
                     <Avatar className="h-16 w-16">
-                      <AvatarImage src={mentor.avatar} />
                       <AvatarFallback className="bg-gray-600 text-white text-lg">
                         {mentor.name.split(' ').map((n: string) => n[0]).join('')}
                       </AvatarFallback>
@@ -742,7 +763,7 @@ export default function StudentMentorsPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                    <span>{mentor.experience} years experience</span>
+                    <span>{mentor.experience > 0 ? `${mentor.experience} years experience` : 'Experience not specified'}</span>
                     <span>Languages: {mentor.languages.join(', ') || 'Not specified'}</span>
                   </div>
 
@@ -791,6 +812,7 @@ export default function StudentMentorsPage() {
           </div>
         </TabsContent>
 
+        {/* SESSIONS TAB */}
         <TabsContent value="sessions" className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-gray-900">My Sessions</h2>
@@ -811,7 +833,6 @@ export default function StudentMentorsPage() {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-4">
                         <Avatar className="h-12 w-12">
-                          <AvatarImage src={session.mentorAvatar} />
                           <AvatarFallback className="bg-gray-600 text-white">
                             {session.mentorName.split(' ').map((n: string) => n[0]).join('')}
                           </AvatarFallback>
@@ -890,6 +911,7 @@ export default function StudentMentorsPage() {
           )}
         </TabsContent>
 
+        {/* REQUESTS TAB */}
         <TabsContent value="requests" className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-gray-900">Mentorship Requests</h2>
@@ -978,6 +1000,7 @@ export default function StudentMentorsPage() {
           </div>
         </TabsContent>
 
+        {/* FAVORITES TAB */}
         <TabsContent value="favorites" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {mentors.filter(m => m.isFavorite).map((mentor) => (
@@ -985,7 +1008,6 @@ export default function StudentMentorsPage() {
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-4 mb-4">
                     <Avatar className="h-16 w-16">
-                      <AvatarImage src={mentor.avatar} />
                       <AvatarFallback className="bg-gray-600 text-white text-lg">
                         {mentor.name.split(' ').map((n: string) => n[0]).join('')}
                       </AvatarFallback>
@@ -1044,17 +1066,110 @@ export default function StudentMentorsPage() {
             ))}
           </div>
         </TabsContent>
+
+        {/* FEEDBACK TAB */}
+        <TabsContent value="feedback" className="space-y-6">
+          <div className="max-w-7xl mx-auto space-y-8 px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">My Feedback</h1>
+                <p className="text-gray-500 mt-1"></p>
+              </div>
+            </div>
+
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-gray-100 rounded-xl p-1">
+                <TabsTrigger value="overview" className="rounded-lg py-2 font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="rounded-lg py-2 font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">
+                  Analytics
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="overview" className="mt-6 space-y-6">
+                {feedbackWithDetails.length === 0 ? (
+                  <Card className="border-0 shadow-lg">
+                    <CardContent className="p-12 text-center">
+                      <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No feedback yet</h3>
+                      <p className="text-gray-600">You haven't received any feedback from your mentors.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {feedbackWithDetails.map((fb) => (
+                      <Card key={fb.mentorId} className="hover:shadow-lg transition-shadow">
+                        <CardContent className="p-5">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarFallback className="bg-gray-600 text-white">{fb.mentorName.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{fb.mentorName}</h4>
+                                <p className="text-sm text-gray-500">{fb.sessionTopic}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {renderStars(fb.rating)}
+                              <span className="text-sm font-medium text-gray-600">{fb.rating}/5</span>
+                            </div>
+                          </div>
+                          <p className="text-gray-600 leading-relaxed">{fb.review}</p>
+                          {fb.mentorRating && (
+                            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                              <h5 className="text-sm font-medium text-gray-700 mb-2">Mentor's Feedback</h5>
+                              <div className="flex items-center space-x-2 mb-2">
+                                {renderStars(fb.mentorRating)}
+                                <span className="text-sm font-medium text-gray-600">{fb.mentorRating}/5</span>
+                              </div>
+                              {fb.mentorReview && <p className="text-gray-600 leading-relaxed">{fb.mentorReview}</p>}
+                            </div>
+                          )}
+                          <div className="flex justify-end items-center mt-3 text-xs text-gray-400">
+                            <span>{new Date(fb.sessionDate).toLocaleDateString()}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="analytics" className="mt-6">
+                <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-gray-50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-xl">
+                      <BarChart3 className="w-6 h-6 mr-2 text-blue-600" />
+                      Your Rating Distribution
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={ratingData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="rating" />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </TabsContent>
       </Tabs>
 
+      {/* MESSAGE MODAL */}
       <Dialog open={showMessageModal} onOpenChange={setShowMessageModal}>
         <DialogContent className="max-w-md w-full max-h-[90vh] h-[600px] p-0 flex flex-col">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Chat with {selectedMentorForMessage?.name}</DialogTitle>
-            <DialogDescription>Send and receive messages with your mentor</DialogDescription>
-          </DialogHeader>
           <div className="bg-green-600 text-white p-4 flex items-center space-x-3 flex-shrink-0">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={selectedMentorForMessage?.avatar} />
               <AvatarFallback className="bg-gray-600 text-white">
                 {selectedMentorForMessage?.name.split(' ').map((n: string) => n[0]).join('')}
               </AvatarFallback>
@@ -1156,6 +1271,7 @@ export default function StudentMentorsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* SCHEDULE MODAL */}
       <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
         <DialogContent className="max-w-md w-full">
           <DialogHeader>
@@ -1167,13 +1283,14 @@ export default function StudentMentorsPage() {
               {selectedMentorForSchedule ? (
                 <>
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={selectedMentorForSchedule.avatar} />
                     <AvatarFallback className="bg-gray-600 text-white">
                       {selectedMentorForSchedule.name.split(' ').map((n: string) => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="font-semibold text-gray-900">Book with {selectedMentorForSchedule.name}</h3>
+                    <div className="font-semibold text-gray-900">
+                      Book with {selectedMentorForSchedule.name}
+                    </div>
                     <p className="text-sm text-gray-600">{selectedMentorForSchedule.title}</p>
                   </div>
                 </>
@@ -1263,15 +1380,11 @@ export default function StudentMentorsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* CALL MODAL */}
       <Dialog open={showCallModal} onOpenChange={setShowCallModal}>
         <DialogContent className="max-w-md w-full max-h-[90vh] h-[600px] p-0 flex flex-col">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Join Call</DialogTitle>
-            <DialogDescription>Join the video call with {selectedSessionForCall?.mentorName}</DialogDescription>
-          </DialogHeader>
           <div className="bg-blue-600 text-white p-4 flex items-center space-x-3 flex-shrink-0">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={selectedSessionForCall?.mentorAvatar} />
               <AvatarFallback className="bg-gray-600 text-white">
                 {selectedSessionForCall?.mentorName.split(' ').map((n: string) => n[0]).join('')}
               </AvatarFallback>
@@ -1322,6 +1435,7 @@ export default function StudentMentorsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* FEEDBACK MODAL */}
       <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
         <DialogContent className="max-w-md w-full">
           <DialogHeader>
@@ -1331,7 +1445,6 @@ export default function StudentMentorsPage() {
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={selectedMentorForFeedback?.avatar} />
                 <AvatarFallback className="bg-gray-600 text-white">
                   {selectedMentorForFeedback?.name.split(' ').map((n: string) => n[0]).join('')}
                 </AvatarFallback>

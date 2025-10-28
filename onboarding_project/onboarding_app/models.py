@@ -72,15 +72,12 @@ class ChatMessage(models.Model):
     message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES, default='text')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='sent')
     timestamp = models.DateTimeField(auto_now_add=True)
-    is_deleted = models.BooleanField(default=False)
     is_conversation = models.BooleanField(default=False)
-    file_url = models.URLField(blank=True, null=True)
-    reply_to_id = models.CharField(max_length=255, blank=True, null=True)
     conversation_data = models.JSONField(default=list, blank=True)  # Store entire conversation as JSON array
     ratings = models.IntegerField(null=True, blank=True)  # Star rating, e.g., 1-5
     feedback = models.TextField(null=True, blank=True)  # Feedback text
-    response = models.TextField(null=True, blank=True)  # Mentor response to feedback
-    response_date = models.DateTimeField(null=True, blank=True)  # Date when mentor responded
+    mentor_ratings = models.IntegerField(null=True, blank=True)  # Mentor rating for student, e.g., 1-5
+    mentor_feedback = models.TextField(null=True, blank=True)  # Mentor feedback text for student
 
     def __str__(self):
         return f"Message from {self.sender_type} at {self.timestamp}"

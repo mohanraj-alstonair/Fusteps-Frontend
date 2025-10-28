@@ -24,21 +24,26 @@ def register(request):
         return JsonResponse({'error': 'POST required'}, status=405)
 
     try:
+        logger.info(f"Register request body: {request.body}")
         data = json.loads(request.body.decode('utf-8'))
+        logger.info(f"Parsed data: {data}")
 
         role = data.get('role')
         email = data.get('email')
         password = data.get('password')
         name = data.get('name')
 
+        logger.info(f"Extracted fields: role={role}, email={email}, password={'*' * len(password) if password else None}, name={name}")
+
         if not all([role, email, password, name]):
+            logger.warning(f"Missing required fields: role={role}, email={email}, password={bool(password)}, name={name}")
             return JsonResponse({'error': 'All fields required'}, status=400)
 
         if role not in ['student', 'mentor', 'employer', 'alumni', 'admin']:
             return JsonResponse({'error': 'Invalid role'}, status=400)
 
         if Candidate.objects.filter(email=email).exists():
-            return JsonResponse({'error': 'Email already exists'}, status=400)
+            return JsonResponse({'error': f'Email {email} already exists'}, status=400)
 
         # Create candidate with role-specific fields
         candidate = Candidate(
@@ -370,10 +375,10 @@ def list_student_connections(request):
                     'mentor_review_count': mentor_review_count
                 }
 
-                # Add feedback data if it exists in the connection
-                if req.ratings is not None and req.feedback is not None:
-                    connection_data['ratings'] = req.ratings
-                    connection_data['feedback'] = req.feedback
+                # Add mentor feedback data if it exists in the connection
+                if req.mentor_ratings is not None and req.mentor_feedback is not None:
+                    connection_data['mentor_ratings'] = req.mentor_ratings
+                    connection_data['mentor_feedback'] = req.mentor_feedback
 
                 connections.append(connection_data)
             except Candidate.DoesNotExist:
@@ -1394,8 +1399,6 @@ def get_mentor_feedback(request):
                     'sessionDate': msg.timestamp.strftime('%Y-%m-%d'),
                     'rating': msg.ratings,
                     'feedback': msg.feedback,
-                    'response': msg.response,
-                    'responseDate': msg.response_date.isoformat() if msg.response_date else None,
                     'sentiment': sentiment,
                     'categories': [],  # Placeholder, can be enhanced
                     'helpful': False  # Placeholder
@@ -1411,38 +1414,62 @@ def get_mentor_feedback(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
-def respond_to_feedback(request, feedback_id):
+def submit_mentor_feedback(request):
     try:
-        response_text = request.data.get('response')
+        mentor_id = request.data.get('mentor_id')
+        student_id = request.data.get('student_id')
+        mentor_ratings = request.data.get('mentor_ratings')
+        mentor_feedback = request.data.get('mentor_feedback')
 
-        if not response_text or not response_text.strip():
-            return Response({'error': 'Response text is required'}, status=status.HTTP_400_BAD_REQUEST)
+        logger.info(f"submit_mentor_feedback called with mentor_id={mentor_id}, student_id={student_id}, mentor_ratings={mentor_ratings}, mentor_feedback={mentor_feedback}")
 
-        # Get the feedback message
+        if not all([mentor_id, student_id, mentor_ratings, mentor_feedback]):
+            return Response({'error': 'mentor_id, student_id, mentor_ratings, and mentor_feedback are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate mentor_ratings (1-5)
         try:
-            feedback = ChatMessage.objects.get(
-                id=feedback_id,
-                message_type='text',
-                ratings__isnull=False,
-                feedback__isnull=False
-            )
-        except ChatMessage.DoesNotExist:
-            return Response({'error': 'Feedback not found'}, status=status.HTTP_404_NOT_FOUND)
+            mentor_ratings_int = int(mentor_ratings)
+            if not (1 <= mentor_ratings_int <= 5):
+                raise ValueError
+        except ValueError:
+            return Response({'error': 'mentor_ratings must be an integer between 1 and 5'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Update the feedback with response
-        from django.utils import timezone
-        feedback.response = response_text.strip()
-        feedback.response_date = timezone.now()
-        feedback.save()
+        # Validate that mentor and student exist and have accepted connection
+        try:
+            mentor = Candidate.objects.get(id=mentor_id, role='mentor')
+            student = Candidate.objects.get(id=student_id, role='student')
+            logger.info(f"Found mentor: {mentor.name}, student: {student.name}")
+        except Candidate.DoesNotExist:
+            return Response({'error': 'Invalid mentor or student ID'}, status=status.HTTP_404_NOT_FOUND)
 
-        logger.info(f"Mentor responded to feedback {feedback_id}")
+        # Find the accepted connection ChatMessage
+        connection = ChatMessage.objects.filter(
+            sender_id=str(student_id),
+            receiver_id=str(mentor_id),
+            sender_type='student',
+            status='accepted',
+            message_type='text'
+        ).first()
+
+        logger.info(f"Connection found: {connection}")
+
+        if not connection:
+            return Response({'error': 'No accepted connection found between student and mentor'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Update the connection with mentor ratings and feedback
+        connection.mentor_ratings = mentor_ratings_int
+        connection.mentor_feedback = mentor_feedback
+        connection.save()
+
+        message = "Mentor feedback submitted successfully"
+        logger.info("Mentor feedback stored in connection")
 
         return Response({
-            'message': 'Response submitted successfully',
-            'response': feedback.response,
-            'responseDate': feedback.response_date.isoformat()
-        }, status=status.HTTP_200_OK)
+            'message': message,
+            'mentor_ratings': mentor_ratings_int,
+            'mentor_feedback': mentor_feedback
+        }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        logger.error(f"Error in respond_to_feedback: {str(e)}")
+        logger.error(f"Error in submit_mentor_feedback: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -163,6 +163,9 @@ export const getAcceptedBookings = (mentorId: number) =>
 export const submitFeedback = (payload: { student_id: number; mentor_id: number; ratings: number; feedback: string }) =>
   api.post("/api/submit-feedback/", payload);
 
+export const submitMentorFeedback = (payload: { mentor_id: number; student_id: number; mentor_ratings: number; mentor_feedback: string }) =>
+  api.post("/api/submit-mentor-feedback/", payload);
+
 export const getMentorSessions = (mentorId: number) =>
   api.get(`/api/mentor/sessions/?mentor_id=${mentorId}`);
 

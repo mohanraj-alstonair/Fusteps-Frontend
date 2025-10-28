@@ -83,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'registered_candidate',
         'USER': 'root',
-        'PASSWORD': 'root',  # Common XAMPP password
+        'PASSWORD': '',  # Common XAMPP password
         'HOST': 'localhost',
         'PORT': '3306',
     }
