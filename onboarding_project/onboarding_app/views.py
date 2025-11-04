@@ -4,6 +4,7 @@ import json
 import pdfplumber
 import re
 from .models import Candidate, ChatMessage, BookedSession
+from skills_management.models import Skill, UserSkill
 from .serializers import ChatMessageSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -19,75 +20,670 @@ from .logger import setup_logger
 logger = setup_logger()
 
 @csrf_exempt
-def register(request):
+def onboarding(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
 
     try:
-        logger.info(f"Register request body: {request.body}")
-        data = json.loads(request.body.decode('utf-8'))
-        logger.info(f"Parsed data: {data}")
+        # Handle both JSON and form data
+        if request.content_type == 'application/json':
+            data = json.loads(request.body.decode('utf-8'))
+        else:
+            data = request.POST
 
-        role = data.get('role')
+        # Get user ID from request or data
+        user_id = data.get('user_id') or request.GET.get('user_id')
+        if not user_id:
+            return JsonResponse({'error': 'User ID is required'}, status=400)
+
+        # Extract onboarding fields
+        phone = data.get('phone')
+        university = data.get('university', '')
+        field_of_study = data.get('field_of_study', '')
+        year_of_passout = data.get('year_of_passout')
+        degree = data.get('degree', '')
+        cgpa = data.get('cgpa', '')
+        skills = data.get('skills', '')
+        career_goals = data.get('careerGoals', '')
+        linkedin = data.get('linkedIn', '')
+        portfolio = data.get('portfolio', '')
+        
+        # Parse skills if it's a JSON string
+        skills_list = []
+        if skills:
+            try:
+                skills_list = json.loads(skills) if isinstance(skills, str) else skills
+            except:
+                skills_list = []
+
+        if not all([phone, year_of_passout]):
+            return JsonResponse({'error': 'Phone and graduation year are required'}, status=400)
+
+        # Convert year_of_passout to integer if provided
+        year_of_passout_int = None
+        if year_of_passout:
+            try:
+                year_of_passout_int = int(year_of_passout)
+            except ValueError:
+                return JsonResponse({'error': 'Invalid graduation year format'}, status=400)
+
+        # Handle resume file if provided
+        resume_file_content = None
+        resume_filename = None
+        if 'resume_file' in request.FILES:
+            resume_file = request.FILES['resume_file']
+            if resume_file.name.lower().endswith('.pdf'):
+                resume_file_content = resume_file.read()
+                resume_filename = resume_file.name
+
+        # Update existing candidate with onboarding data
+        try:
+            candidate = Candidate.objects.get(id=user_id)
+            
+            # Update onboarding fields
+            candidate.phone = phone
+            candidate.university = university
+            candidate.field_of_study = field_of_study
+            candidate.year_of_passout = year_of_passout_int
+            candidate.degree = degree
+            candidate.onboarding_completed = True  # Mark onboarding as complete
+            
+            if resume_file_content:
+                candidate.resume_file = resume_file_content
+                candidate.resume_filename = resume_filename
+            
+            candidate.save()
+            
+            # Handle skills through UserSkill model (with error handling)
+            try:
+                UserSkill.objects.filter(user=candidate).delete()  # Clear existing
+                for skill_name in skills_list:
+                    if skill_name.strip():
+                        skill, created = Skill.objects.get_or_create(
+                            name=skill_name.strip(),
+                            defaults={'category': 'PROGRAMMING'}
+                        )
+                        UserSkill.objects.create(
+                            user=candidate, 
+                            skill=skill, 
+                            proficiency='BEGINNER',
+                            years_of_experience=0.0,
+                            is_certified=False,
+                            is_verified=False  # Just claimed during onboarding
+                        )
+            except Exception as skill_error:
+                logger.warning(f"Error handling skills: {str(skill_error)}")
+
+            return JsonResponse({
+                'message': 'Onboarding completed successfully',
+                'candidate_id': candidate.id,
+                'onboarding_completed': True
+            })
+            
+        except Candidate.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+
+    except Exception as e:
+        logger.error(f"Onboarding error: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_user_profile(request, user_id):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'GET required'}, status=405)
+
+    try:
+        print(f"Fetching profile for user_id: {user_id}")
+        candidate = Candidate.objects.get(id=user_id)
+        print(f"Found candidate: {candidate.name} ({candidate.email})")
+        
+        # Get user skills from database
+        user_skills = []
+        try:
+            skills_query = UserSkill.objects.filter(user=candidate).select_related('skill')
+            user_skills = [{
+                'id': us.skill.id,
+                'name': us.skill.name,
+                'category': us.skill.category,
+                'proficiency': us.proficiency,
+                'years_of_experience': us.years_of_experience,
+                'is_certified': us.is_certified
+            } for us in skills_query]
+        except Exception as e:
+            logger.warning(f"Error fetching skills for user {user_id}: {str(e)}")
+            user_skills = []
+        
+        # Build comprehensive profile data
+        profile_data = {
+            'id': candidate.id,
+            'name': candidate.name or '',
+            'email': candidate.email or '',
+            'phone': candidate.phone or '',
+            'role': candidate.role or '',
+            'university': candidate.university or '',
+            'field_of_study': candidate.field_of_study or '',
+            'degree': candidate.degree or '',
+            'year_of_passout': candidate.year_of_passout,
+            'location': candidate.location or '',
+            'company_name': candidate.company_name or '',
+            'expertise': candidate.expertise or '',
+            'experience': candidate.experience or 0,
+            'education_level': candidate.education_level or '',
+            'mentor_role': candidate.mentor_role or '',
+            'employer_role': candidate.employer_role or '',
+            'skills': user_skills,
+            'has_resume': bool(candidate.resume_file),
+            'resume_filename': candidate.resume_filename or '',
+            'created_at': candidate.id,  # Using ID as creation indicator
+            'profile_completion': calculate_profile_completion(candidate, user_skills)
+        }
+        
+        logger.info(f"Profile data fetched for user {user_id}: {len(user_skills)} skills found")
+        return JsonResponse(profile_data)
+        
+    except Candidate.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error fetching profile for user {user_id}: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+def calculate_profile_completion(candidate, skills):
+    """Calculate profile completion percentage"""
+    total_fields = 0
+    completed_fields = 0
+    
+    # Basic fields (always count)
+    basic_fields = ['name', 'email', 'phone']
+    for field in basic_fields:
+        total_fields += 1
+        if getattr(candidate, field, None):
+            completed_fields += 1
+    
+    # Role-specific fields
+    if candidate.role == 'student':
+        student_fields = ['university', 'field_of_study', 'degree', 'year_of_passout']
+        for field in student_fields:
+            total_fields += 1
+            if getattr(candidate, field, None):
+                completed_fields += 1
+    elif candidate.role == 'mentor':
+        mentor_fields = ['expertise', 'experience', 'education_level', 'company_name']
+        for field in mentor_fields:
+            total_fields += 1
+            if getattr(candidate, field, None):
+                completed_fields += 1
+    elif candidate.role == 'employer':
+        employer_fields = ['company_name', 'location', 'employer_role']
+        for field in employer_fields:
+            total_fields += 1
+            if getattr(candidate, field, None):
+                completed_fields += 1
+    
+    # Skills
+    total_fields += 1
+    if skills:
+        completed_fields += 1
+    
+    return int((completed_fields / total_fields) * 100) if total_fields > 0 else 0
+
+@csrf_exempt
+def update_user_profile(request, user_id):
+    if request.method != 'PUT':
+        return JsonResponse({'error': 'PUT required'}, status=405)
+
+    try:
+        candidate = Candidate.objects.get(id=user_id)
+        
+        # Handle both JSON and form data
+        if request.content_type == 'application/json':
+            data = json.loads(request.body.decode('utf-8'))
+        else:
+            data = request.POST
+        
+        logger.info(f"Updating profile for user {user_id} with data: {data}")
+        
+        # Update basic fields
+        updateable_fields = [
+            'name', 'email', 'phone', 'university', 'field_of_study', 'degree',
+            'location', 'company_name', 'expertise', 'education_level', 
+            'mentor_role', 'employer_role'
+        ]
+        
+        for field in updateable_fields:
+            if field in data:
+                setattr(candidate, field, data[field])
+        
+        # Handle numeric fields
+        if 'year_of_passout' in data and data['year_of_passout']:
+            try:
+                candidate.year_of_passout = int(data['year_of_passout'])
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Invalid year format'}, status=400)
+        
+        if 'experience' in data and data['experience']:
+            try:
+                candidate.experience = int(data['experience'])
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Invalid experience format'}, status=400)
+        
+        # Handle skills update
+        if 'skills' in data:
+            skills_data = data['skills'] if isinstance(data['skills'], list) else []
+            print(f"Updating skills for user {user_id}: {skills_data}")
+            logger.info(f"Updating skills for user {user_id}: {skills_data}")
+            
+            try:
+                # Clear existing skills
+                UserSkill.objects.filter(user=candidate).delete()
+                
+                # Add new skills
+                for skill_data in skills_data:
+                    if isinstance(skill_data, dict) and 'name' in skill_data:
+                        skill, created = Skill.objects.get_or_create(
+                            name=skill_data['name'],
+                            defaults={
+                                'category': skill_data.get('category', 'PROGRAMMING'),
+                                'description': skill_data.get('description', ''),
+                                'is_trending': skill_data.get('is_trending', False),
+                                'demand_score': skill_data.get('demand_score', 0)
+                            }
+                        )
+                        
+                        # Create UserSkill with proper verification
+                        years_exp = float(skill_data.get('years_of_experience', 0.0))
+                        is_cert = bool(skill_data.get('is_certified', False))
+                        
+                        # Apply verification logic
+                        is_verified = is_cert or years_exp >= 2.0
+                        
+                        UserSkill.objects.create(
+                            user=candidate,
+                            skill=skill,
+                            proficiency=skill_data.get('proficiency', 'BEGINNER'),
+                            years_of_experience=years_exp,
+                            is_certified=is_cert,
+                            is_verified=is_verified
+                        )
+                        
+                logger.info(f"Successfully updated {len(skills_data)} skills for user {user_id}")
+            except Exception as e:
+                logger.error(f"Error updating skills for user {user_id}: {str(e)}")
+                return JsonResponse({'error': f'Error updating skills: {str(e)}'}, status=500)
+        
+        candidate.save()
+        
+        # Fetch updated profile data
+        updated_skills = []
+        try:
+            skills_query = UserSkill.objects.filter(user=candidate).select_related('skill')
+            updated_skills = [{
+                'id': us.skill.id,
+                'name': us.skill.name,
+                'category': us.skill.category,
+                'proficiency': us.proficiency,
+                'years_of_experience': us.years_of_experience,
+                'is_certified': us.is_certified
+            } for us in skills_query]
+        except Exception as e:
+            logger.warning(f"Error fetching updated skills: {str(e)}")
+        
+        return JsonResponse({
+            'message': 'Profile updated successfully',
+            'profile': {
+                'id': candidate.id,
+                'name': candidate.name or '',
+                'email': candidate.email or '',
+                'phone': candidate.phone or '',
+                'role': candidate.role or '',
+                'university': candidate.university or '',
+                'field_of_study': candidate.field_of_study or '',
+                'degree': candidate.degree or '',
+                'year_of_passout': candidate.year_of_passout,
+                'location': candidate.location or '',
+                'company_name': candidate.company_name or '',
+                'expertise': candidate.expertise or '',
+                'experience': candidate.experience or 0,
+                'education_level': candidate.education_level or '',
+                'mentor_role': candidate.mentor_role or '',
+                'employer_role': candidate.employer_role or '',
+                'skills': updated_skills,
+                'profile_completion': calculate_profile_completion(candidate, updated_skills)
+            }
+        })
+        
+    except Candidate.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error updating profile for user {user_id}: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_profile_data(request, user_id):
+    """Get comprehensive profile data including statistics and related information"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'GET required'}, status=405)
+
+    try:
+        candidate = Candidate.objects.get(id=user_id)
+        
+        # Get user skills
+        user_skills = []
+        skills_count = 0
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT s.id, s.name, s.category, s.description, s.is_trending, s.demand_score, "
+                    "us.proficiency, us.years_of_experience, us.is_certified "
+                    "FROM skills s JOIN user_skills us ON s.id = us.skill_id "
+                    "WHERE us.user_id = %s ORDER BY s.name",
+                    [user_id]
+                )
+                skills_data = cursor.fetchall()
+                
+                for skill in skills_data:
+                    user_skills.append({
+                        'id': skill[0],
+                        'name': skill[1],
+                        'category': skill[2],
+                        'description': skill[3] or '',
+                        'is_trending': bool(skill[4]),
+                        'demand_score': skill[5],
+                        'proficiency': skill[6],
+                        'years_of_experience': float(skill[7]),
+                        'is_certified': bool(skill[8])
+                    })
+                skills_count = len(user_skills)
+        except Exception as e:
+            logger.warning(f"Error fetching skills for user {user_id}: {str(e)}")
+        
+        # Calculate profile completion
+        profile_completion = calculate_profile_completion(candidate, user_skills)
+        
+        # Build comprehensive response
+        profile_data = {
+            'id': candidate.id,
+            'name': candidate.name or '',
+            'email': candidate.email or '',
+            'phone': candidate.phone or '',
+            'role': candidate.role or '',
+            'university': candidate.university or '',
+            'field_of_study': candidate.field_of_study or '',
+            'degree': candidate.degree or '',
+            'year_of_passout': candidate.year_of_passout,
+            'location': candidate.location or '',
+            'company_name': candidate.company_name or '',
+            'expertise': candidate.expertise or '',
+            'experience': candidate.experience or 0,
+            'education_level': candidate.education_level or '',
+            'mentor_role': candidate.mentor_role or '',
+            'employer_role': candidate.employer_role or '',
+            'skills': user_skills,
+            'skills_count': skills_count,
+            'profile_completion': profile_completion,
+            'last_updated': timezone.now().isoformat()
+        }
+        
+        logger.info(f"Comprehensive profile data fetched for user {user_id}")
+        return JsonResponse(profile_data)
+        
+    except Candidate.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error fetching comprehensive profile for user {user_id}: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_all_skills(request):
+    """Get all available skills from the database"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'GET required'}, status=405)
+    
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT id, name, category, description, is_trending, demand_score "
+                "FROM skills ORDER BY name"
+            )
+            skills_data = cursor.fetchall()
+            
+            skills = []
+            for skill in skills_data:
+                skills.append({
+                    'id': skill[0],
+                    'name': skill[1],
+                    'category': skill[2],
+                    'description': skill[3] or '',
+                    'is_trending': bool(skill[4]),
+                    'demand_score': skill[5]
+                })
+        
+        return JsonResponse({
+            'skills': skills,
+            'total_count': len(skills)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching all skills: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_skill_recommendations(request, user_id):
+    """Get personalized skill recommendations based on user profile"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'GET required'}, status=405)
+    
+    try:
+        candidate = Candidate.objects.get(id=user_id)
+        
+        # Get user's current skills
+        user_skills = []
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT s.name FROM skills s JOIN user_skills us ON s.id = us.skill_id WHERE us.user_id = %s",
+                    [user_id]
+                )
+                user_skills = [row[0].lower() for row in cursor.fetchall()]
+        except Exception:
+            pass
+        
+        # Skill recommendations based on field of study and current skills
+        recommendations = []
+        field = candidate.field_of_study.lower() if candidate.field_of_study else ''
+        
+        # CS field recommendations based on current skills
+        if 'cs' in field or 'computer' in field or 'software' in field:
+            # If they have ML, recommend related skills
+            if 'machine learning' in [s.lower() for s in user_skills]:
+                ml_skills = ['Python', 'TensorFlow', 'PyTorch', 'Data Science', 'Deep Learning', 'Neural Networks']
+                recommendations.extend([s for s in ml_skills if s.lower() not in user_skills])
+            
+            # If they have Cloud Computing, recommend related skills  
+            if 'cloud computing' in [s.lower() for s in user_skills]:
+                cloud_skills = ['AWS', 'Azure', 'Docker', 'Kubernetes', 'DevOps', 'Microservices']
+                recommendations.extend([s for s in cloud_skills if s.lower() not in user_skills])
+            
+            # Core CS skills gap analysis
+            core_skills = ['Python', 'JavaScript', 'SQL', 'Git', 'Data Structures', 'Algorithms']
+            recommendations.extend([s for s in core_skills if s.lower() not in user_skills])
+        
+        # Remove duplicates and limit
+        recommendations = list(dict.fromkeys(recommendations))
+        
+        return JsonResponse({
+            'recommendations': recommendations[:10],  # Limit to 10
+            'user_skills': user_skills
+        })
+        
+    except Candidate.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def register_basic(request):
+    """Step 1: Basic Registration Details"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        
+        # Extract basic registration fields
+        full_name = data.get('fullName')
         email = data.get('email')
         password = data.get('password')
-        name = data.get('name')
+        mobile_number = data.get('mobileNumber')
+        work_status = data.get('workStatus')
+        current_city = data.get('currentCity')
 
-        logger.info(f"Extracted fields: role={role}, email={email}, password={'*' * len(password) if password else None}, name={name}")
-
-        if not all([role, email, password, name]):
-            logger.warning(f"Missing required fields: role={role}, email={email}, password={bool(password)}, name={name}")
-            return JsonResponse({'error': 'All fields required'}, status=400)
-
-        if role not in ['student', 'mentor', 'employer', 'alumni', 'admin']:
-            return JsonResponse({'error': 'Invalid role'}, status=400)
+        if not all([full_name, email, password, mobile_number, work_status, current_city]):
+            return JsonResponse({'error': 'All fields are required'}, status=400)
 
         if Candidate.objects.filter(email=email).exists():
-            return JsonResponse({'error': f'Email {email} already exists'}, status=400)
+            return JsonResponse({'error': 'Email already exists'}, status=400)
 
-        # Create candidate with role-specific fields
+        # Handle resume upload if provided
+        resume_file_content = None
+        resume_filename = None
+        if 'resume' in request.FILES:
+            resume_file = request.FILES['resume']
+            if resume_file.name.lower().endswith(('.pdf', '.doc', '.docx')):
+                resume_file_content = resume_file.read()
+                resume_filename = resume_file.name
+
+        # Create candidate
         candidate = Candidate(
-            role=role,
+            full_name=full_name,
             email=email,
-            name=name,
+            mobile_number=mobile_number,
+            work_status=work_status,
+            current_city=current_city,
+            registration_completed=True,
+            resume_file=resume_file_content,
+            resume_filename=resume_filename,
+            # Legacy fields
+            name=full_name,
+            first_name=full_name.split()[0] if full_name else '',
+            last_name=' '.join(full_name.split()[1:]) if len(full_name.split()) > 1 else ''
         )
-
-        # Add role-specific fields
-        if role == 'mentor':
-            candidate.expertise = data.get('expertise')
-            candidate.experience = data.get('experience_years')  # frontend sends experience_years
-            candidate.education_level = data.get('education_level')
-            candidate.company_name = data.get('company_name')
-            candidate.location = data.get('location')
-            candidate.field_of_study = data.get('field_of_study')
-            candidate.mentor_role = data.get('mentor_role')
-        elif role == 'student':
-            candidate.year_of_passout = data.get('year_of_passout')
-            candidate.degree = data.get('degree')
-            candidate.field_of_study = data.get('field_of_study')
-        elif role == 'alumni':
-            candidate.year_of_passout = data.get('year_of_passout')
-            candidate.degree = data.get('degree')
-            candidate.company_name = data.get('company_name')
-            candidate.location = data.get('location')
-            candidate.field_of_study = data.get('field_of_study')
-        elif role == 'employer':
-            candidate.company_name = data.get('company_name')
-            candidate.location = data.get('location')
-            candidate.employer_role = data.get('employer_role')
-        # Admin has no extra fields
-
         candidate.set_password(password)
         candidate.save()
 
         return JsonResponse({
             'success': True,
-            'message': 'Registration successful',
-            'candidate_id': candidate.id
+            'message': 'Basic registration completed',
+            'candidate_id': candidate.id,
+            'next_step': 'education'
         })
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def register_education(request):
+    """Step 2: Education Details"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return JsonResponse({'error': 'User ID required'}, status=400)
+
+        candidate = Candidate.objects.get(id=user_id)
+        
+        # Update education fields
+        candidate.highest_qualification = data.get('highestQualification', '')
+        candidate.course = data.get('course', '')
+        candidate.course_type = data.get('courseType', 'Full Time')
+        candidate.specialization = data.get('specialization', '')
+        candidate.university_institute = data.get('universityInstitute', '')
+        candidate.starting_year = data.get('startingYear')
+        candidate.passing_year = data.get('passingYear')
+        candidate.grading_system = data.get('gradingSystem', '')
+        candidate.marks_percentage = data.get('marksPercentage')
+        candidate.education_completed = True
+        
+        # Handle key skills
+        key_skills = data.get('keySkills', [])
+        if key_skills:
+            try:
+                UserSkill.objects.filter(user=candidate).delete()
+                for skill_name in key_skills:
+                    if skill_name.strip():
+                        skill, created = Skill.objects.get_or_create(
+                            name=skill_name.strip(),
+                            defaults={'category': 'TECHNICAL'}
+                        )
+                        UserSkill.objects.create(
+                            user=candidate,
+                            skill=skill,
+                            proficiency='BEGINNER'
+                        )
+            except Exception as e:
+                logger.warning(f"Error handling skills: {str(e)}")
+        
+        candidate.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Education details saved',
+            'candidate_id': candidate.id,
+            'next_step': 'profile_completion'
+        })
+
+    except Candidate.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def complete_profile(request):
+    """Step 3: Profile Completion"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return JsonResponse({'error': 'User ID required'}, status=400)
+
+        candidate = Candidate.objects.get(id=user_id)
+        
+        # Update profile completion fields
+        candidate.resume_headline = data.get('resumeHeadline', '')
+        candidate.career_objective = data.get('careerObjective', '')
+        candidate.preferred_locations = json.dumps(data.get('preferredLocations', []))
+        candidate.expected_salary = data.get('expectedSalary', '')
+        candidate.profile_completed = True
+        candidate.onboarding_completed = True
+        
+        candidate.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Profile completed successfully',
+            'candidate_id': candidate.id,
+            'completion_percentage': candidate.get_completion_percentage()
+        })
+
+    except Candidate.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+# Keep original register for backward compatibility
+@csrf_exempt
+def register(request):
+    return register_basic(request)
 
 @csrf_exempt
 def forgot_password(request):
@@ -154,14 +750,30 @@ def login(request):
 
         logger.info(f"Login successful for candidate id={candidate.id}")
 
+        # Determine if user needs onboarding based on new registration flow
+        needs_onboarding = False
+        if candidate.role == 'student':
+            # For new Naukri-style registration, check if all steps are completed
+            if candidate.registration_completed:
+                # New registration flow - check all three steps
+                needs_onboarding = not (candidate.registration_completed and 
+                                      candidate.education_completed and 
+                                      candidate.profile_completed)
+            else:
+                # Legacy registration - check old onboarding_completed field
+                needs_onboarding = not candidate.onboarding_completed
+        
         return JsonResponse({
             'success': True,
             'message': 'Login successful',
             'user': {
                 'id': candidate.id,
-                'name': candidate.name,
+                'name': candidate.full_name or candidate.name,
+                'first_name': candidate.first_name,
+                'last_name': candidate.last_name,
                 'email': candidate.email,
-                'role': candidate.role
+                'role': candidate.role,
+                'onboarding_completed': not needs_onboarding
             }
         })
 
@@ -201,6 +813,10 @@ def upload_resume(request):
         return JsonResponse({'error': 'Only PDF files allowed'}, status=400)
 
     try:
+        # Read file content for blob storage
+        file_content = file.read()
+        file.seek(0)  # Reset file pointer
+        
         # Create a temporary file to process the PDF
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
             for chunk in file.chunks():
@@ -220,6 +836,19 @@ def upload_resume(request):
 
         # Parse the extracted text
         parsed_data = parse_resume_text(text)
+        
+        # Store resume if user_id is provided
+        user_id = request.POST.get('user_id')
+        if user_id:
+            try:
+                candidate = Candidate.objects.get(id=user_id)
+                candidate.resume_file = file_content
+                candidate.resume_filename = file.name
+                candidate.save()
+                parsed_data['resume_stored'] = True
+            except Candidate.DoesNotExist:
+                parsed_data['resume_stored'] = False
+        
         return JsonResponse(parsed_data)
 
     except Exception as e:
@@ -1473,3 +2102,78 @@ def submit_mentor_feedback(request):
     except Exception as e:
         logger.error(f"Error in submit_mentor_feedback: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+def get_resume(request, user_id):
+    """Serve resume PDF file from database blob"""
+    if request.method not in ['GET', 'HEAD']:
+        return JsonResponse({'error': 'GET or HEAD required'}, status=405)
+    
+    try:
+        candidate = Candidate.objects.get(id=user_id)
+        
+        if not candidate.resume_file:
+            return JsonResponse({'error': 'No resume found'}, status=404)
+        
+        from django.http import HttpResponse
+        
+        if request.method == 'HEAD':
+            # For HEAD requests, just return headers without content
+            response = HttpResponse(status=200)
+            response['Content-Type'] = 'application/pdf'
+            response['Content-Length'] = len(candidate.resume_file)
+            response['Content-Disposition'] = f'inline; filename="{candidate.resume_filename or "resume.pdf"}"'
+            return response
+        
+        # For GET requests, return the actual file
+        response = HttpResponse(candidate.resume_file, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="{candidate.resume_filename or "resume.pdf"}"'
+        return response
+        
+    except Candidate.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def add_user_skill(request, user_id):
+    """Add a skill to user's profile"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        skill_name = data.get('name')
+        proficiency = data.get('proficiency', 'BEGINNER')
+        
+        if not skill_name:
+            return JsonResponse({'error': 'Skill name required'}, status=400)
+        
+        user = Candidate.objects.get(id=user_id)
+        skill, created = Skill.objects.get_or_create(
+            name=skill_name,
+            defaults={'category': 'PROGRAMMING'}
+        )
+        
+        user_skill, created = UserSkill.objects.get_or_create(
+            user=user,
+            skill=skill,
+            defaults={'proficiency': proficiency}
+        )
+        
+        if created:
+            return JsonResponse({
+                'message': 'Skill added successfully',
+                'skill': {
+                    'id': skill.id,
+                    'name': skill.name,
+                    'proficiency': user_skill.proficiency
+                }
+            })
+        else:
+            return JsonResponse({'message': 'Skill already exists'})
+            
+    except Candidate.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

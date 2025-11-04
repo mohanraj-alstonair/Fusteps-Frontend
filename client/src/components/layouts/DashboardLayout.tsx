@@ -5,6 +5,8 @@ import { useAuth } from '../../hooks/use-auth';
 import { useNotifications } from '../../hooks/use-notifications';
 import { useLocation } from 'wouter';
 
+
+
 interface MenuItem {
   id: string;
   label: string;
@@ -23,6 +25,9 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, title, subtitle, menuItems, currentPage }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  console.log('DashboardLayout - menuItems:', menuItems);
+  console.log('DashboardLayout - currentPage:', currentPage);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const [autoCloseTimer, setAutoCloseTimer] = useState<NodeJS.Timeout | null>(null);
@@ -91,19 +96,20 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
         {/* Sidebar */}
         <div className={`fixed lg:static inset-y-0 left-0 z-40 bg-white shadow-card transform transition-all duration-300 ease-in-out ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        } ${isSidebarCollapsed ? 'lg:w-16' : 'lg:w-64'} w-64`}>
+        } ${isSidebarCollapsed ? 'lg:w-16' : 'lg:w-64'} w-64`} style={{ display: 'block' }}>
           
           {/* Sidebar Header */}
           <div className="flex items-center justify-between p-4">
             <div className={`${isSidebarCollapsed ? 'flex justify-center w-full' : ''}`}>
               {isSidebarCollapsed ? (
-                <div className="w-10 h-10 bg-sky-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">F</span>
-                </div>
+                <img src="/fu steps logo.png" alt="FuSteps" className="w-12 h-12 object-contain" />
               ) : (
-                <div>
-                  <h1 className="text-2xl font-display font-bold text-ink-900">FuSteps</h1>
-                  <p className="text-sm text-ink-500 mt-1">{subtitle}</p>
+                <div className="flex items-center space-x-3">
+                  <img src="/fu steps logo.png" alt="FuSteps Logo" className="h-12 w-auto" />
+                  <div>
+                    <h1 className="text-xl font-display font-bold text-ink-900">FuSteps</h1>
+                    <p className="text-xs text-ink-500">{subtitle}</p>
+                  </div>
                 </div>
               )}
             </div>

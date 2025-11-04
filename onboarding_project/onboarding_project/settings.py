@@ -31,6 +31,7 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,6 +43,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'channels',
     'onboarding_app',
+    'skills_management',
+    'course_management',
+    'job_recommendation',
+    'ats_system',
+    'learning_system',
 ]
 
 MIDDLEWARE = [
@@ -83,11 +89,35 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'registered_candidate',
         'USER': 'root',
-        'PASSWORD': '',  # Common XAMPP password
+        'PASSWORD': '',
         'HOST': 'localhost',
         'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
     }
 }
+
+# Disable Django's automatic primary key field for MySQL compatibility
+USE_DEPRECATED_PYTZ = False
+
+# Override MariaDB version check for compatibility
+import django.db.backends.mysql.base
+import django.db.backends.mysql.features
+
+class CustomDatabaseWrapper(django.db.backends.mysql.base.DatabaseWrapper):
+    def check_database_version_supported(self):
+        pass  # Skip version check
+    
+    @property
+    def mysql_server_info(self):
+        return '10.5.0-MariaDB'  # Fake newer version
+
+django.db.backends.mysql.base.DatabaseWrapper = CustomDatabaseWrapper
+
+# Disable RETURNING clause for MariaDB compatibility
+from django.db.backends.mysql.features import DatabaseFeatures
+DatabaseFeatures.can_return_columns_from_insert = False
 
 
 # Password validation
@@ -126,10 +156,15 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Media files (uploads)
+import os
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 ASGI_APPLICATION = 'onboarding_project.asgi.application'
 

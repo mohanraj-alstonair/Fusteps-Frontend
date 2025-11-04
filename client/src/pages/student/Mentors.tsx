@@ -28,6 +28,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import MessageNotificationBadge from '../../components/MessageNotificationBadge';
 
 interface Mentor {
   id: string;
@@ -285,16 +286,7 @@ export default function StudentMentorsPage() {
     return () => clearInterval(pollInterval);
   }, []);
 
-  // Save feedbacks to localStorage as fallback
-  useEffect(() => {
-    try {
-      const studentId = getCurrentStudentId();
-      localStorage.setItem(`feedbacks_${studentId}`, JSON.stringify(feedbacks));
-    } catch (e) {
-      console.error('Error saving feedbacks to localStorage:', e);
-      toast({ title: 'Error', description: 'Failed to save feedbacks to storage', variant: 'destructive' });
-    }
-  }, [feedbacks]);
+
 
   const fetchConnectionStatuses = async (mentorList: Mentor[]) => {
     const studentId = parseInt(localStorage.getItem('studentId') || '6');
@@ -770,9 +762,10 @@ export default function StudentMentorsPage() {
                   <div className="flex space-x-2">
                     {mentor.requestStatus === 'accepted' ? (
                       <>
-                        <Button className="flex-1 bg-green-600 text-white hover:bg-green-700" onClick={() => openMessageModal(mentor)}>
+                        <Button className="flex-1 bg-green-600 text-white hover:bg-green-700 relative" onClick={() => openMessageModal(mentor)}>
                           <MessageSquare className="w-4 h-4 mr-2" />
                           Message
+                          <MessageNotificationBadge senderId={mentor.id} />
                         </Button>
                         <Button variant="outline" onClick={() => openScheduleModal(mentor)}>
                           <Calendar className="w-4 h-4 mr-2" />
@@ -1228,6 +1221,13 @@ export default function StudentMentorsPage() {
                             }
                             return prev;
                           });
+                          
+                          // Trigger notification for mentor
+                          if ((window as any).showMessageNotification) {
+                            const studentName = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).name || 'Student' : 'Student';
+                            (window as any).showMessageNotification(studentName, studentId.toString());
+                          }
+                          
                           setMessageForm({ message: '' });
                         } catch (err) {
                           toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });

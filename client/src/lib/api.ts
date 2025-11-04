@@ -182,3 +182,157 @@ export const getMentorFeedback = (mentorId: number) =>
 
 export const respondToFeedback = (feedbackId: number, response: string) =>
   api.post(`/api/feedback/${feedbackId}/respond/`, { response });
+
+// Profile APIs
+export const getUserProfile = (userId: number) =>
+  api.get(`/api/profile/${userId}/`);
+
+export const updateUserProfile = (userId: number, profileData: any) =>
+  api.put(`/api/profile/${userId}/update/`, profileData, {
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+// Get comprehensive profile data with statistics
+export const getProfileData = (userId: number) =>
+  api.get(`/api/profile/${userId}/data/`);
+
+// Get all available skills
+export const getAllSkills = () =>
+  api.get('/api/skills/all/');
+
+// Skills management
+export type SkillPayload = {
+  name: string;
+  category?: string;
+  proficiency?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
+  years_of_experience?: number;
+  is_certified?: boolean;
+};
+
+export const addUserSkill = (userId: number, skillData: { name: string; proficiency?: string }) =>
+  api.post(`/api/profile/${userId}/add-skill/`, skillData);
+
+export const removeUserSkill = (userId: number, skillId: number) =>
+  api.delete(`/api/profile/${userId}/skills/${skillId}/`);
+
+export const updateUserSkill = (userId: number, skillId: number, skill: Partial<SkillPayload>) =>
+  api.put(`/api/profile/${userId}/skills/${skillId}/`, skill);
+
+// Get skill recommendations
+export const getSkillRecommendations = (userId: number) =>
+  api.get(`/api/profile/${userId}/skill-recommendations/`);
+
+// Course APIs
+export const getCourses = (params?: { category?: string; level?: string; search?: string }) => {
+  const searchParams = new URLSearchParams();
+  if (params?.category) searchParams.append('category', params.category);
+  if (params?.level) searchParams.append('level', params.level);
+  if (params?.search) searchParams.append('search', params.search);
+  return api.get(`/api/courses/api/courses/?${searchParams.toString()}`);
+};
+
+export const getUserCourses = (userId?: number) => {
+  const params = userId ? `?user_id=${userId}` : '';
+  return api.get(`/api/courses/api/user-courses/${params}`);
+};
+
+export const enrollCourse = (courseId: number, userId?: number) => {
+  const payload = userId ? { course_id: courseId, user_id: userId } : { course_id: courseId };
+  return api.post('/api/courses/api/user-courses/enroll/', payload);
+};
+
+export const getCourseRecommendations = (userId?: number) => {
+  const params = userId ? `?user_id=${userId}` : '';
+  return api.get(`/api/courses/api/recommendations/${params}`);
+};
+
+export const generateCourseRecommendations = (userId?: number) => {
+  const payload = userId ? { user_id: userId } : {};
+  return api.post('/api/courses/api/recommendations/generate_recommendations/', payload);
+};
+
+// Job Recommendation APIs
+export const getJobs = (params?: { job_type?: string; location?: string; experience_level?: string; is_remote?: boolean; search?: string }) => {
+  const searchParams = new URLSearchParams();
+  if (params?.job_type) searchParams.append('job_type', params.job_type);
+  if (params?.location) searchParams.append('location', params.location);
+  if (params?.experience_level) searchParams.append('experience_level', params.experience_level);
+  if (params?.is_remote !== undefined) searchParams.append('is_remote', params.is_remote.toString());
+  if (params?.search) searchParams.append('search', params.search);
+  return api.get(`/api/jobs/api/jobs/?${searchParams.toString()}`);
+};
+
+export const getJobRecommendations = (userId: number) =>
+  api.get(`/api/jobs/api/jobs/recommendations/?user_id=${userId}`);
+
+export const applyToJob = (jobId: number, userId: number, coverLetter?: string) =>
+  api.post(`/api/jobs/api/jobs/${jobId}/apply/`, { user_id: userId, cover_letter: coverLetter });
+
+export const getUserJobApplications = (userId: number) =>
+  api.get(`/api/jobs/api/applications/?user_id=${userId}`);
+
+export const getUserJobMatches = (userId: number) =>
+  api.get(`/api/jobs/api/matches/?user_id=${userId}`);
+
+// ATS System APIs
+export const analyzeResume = (jobDescription: string, resumeText: string) =>
+  api.post('/api/ats/api/analysis/analyze_resume/', {
+    job_description: jobDescription,
+    resume_text: resumeText
+  });
+
+export const getATSAnalysisHistory = () =>
+  api.get('/api/ats/api/analysis/');
+
+export const uploadResumeForATS = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/api/ats/api/resume-files/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+};
+
+export const calculateATSScore = (resumeId: number) =>
+  api.post(`/api/ats/api/resume-files/${resumeId}/calculate_ats_score/`);
+
+// Learning System APIs
+export const getLearningCourses = (params?: { category?: string; difficulty?: string; search?: string }) => {
+  const searchParams = new URLSearchParams();
+  if (params?.category) searchParams.append('category', params.category);
+  if (params?.difficulty) searchParams.append('difficulty', params.difficulty);
+  if (params?.search) searchParams.append('search', params.search);
+  return api.get(`/api/learning/api/courses/?${searchParams.toString()}`);
+};
+
+export const getLearningCourseRecommendations = () =>
+  api.get('/api/learning/api/courses/recommendations/');
+
+export const enrollInLearningCourse = (courseId: number) =>
+  api.post(`/api/learning/api/courses/${courseId}/enroll/`);
+
+export const getUserEnrollments = () =>
+  api.get('/api/learning/api/enrollments/');
+
+export const markModuleCompleted = (moduleId: number) =>
+  api.post(`/api/learning/api/modules/${moduleId}/mark_completed/`);
+
+export const getUserCertificates = () =>
+  api.get('/api/learning/api/certificates/');
+
+// Skill Tokenisation APIs
+export const getUserSkillTokens = (userId: number) =>
+  api.get(`/api/skills/api/skill-tokens/?user_id=${userId}`);
+
+export const getUserSkillGaps = (userId: number) =>
+  api.get(`/api/skills/api/skill-gaps/?user_id=${userId}`);
+
+export const getUserSkillRecommendations = (userId: number) =>
+  api.get(`/api/skills/api/upgrade-recommendations/?user_id=${userId}`);
+
+export const analyzeSkillGaps = (userId: number, targetRole?: string) =>
+  api.post('/api/skills/api/skill-gaps/analyze_gaps/', { user_id: userId, target_role: targetRole });
+
+export const verifySkillToken = (tokenId: string) =>
+  api.get(`/api/skills/api/skill-tokens/${tokenId}/verify_token/`);
+
+

@@ -7,6 +7,7 @@ FuSteps is a comprehensive platform designed to connect students, mentors, alumn
 ### For Students
 - **Onboarding System**: Complete profile setup with academic information
 - **Resume Upload & Parsing**: Automatic extraction of key information from PDF resumes
+- **AI-Powered Skill Intelligence**: Advanced skill tokenization, gap analysis, and personalized recommendations
 - **Mentorship Access**: Connect with experienced mentors
 - **Job Opportunities**: Browse and apply for internships and jobs
 - **Resource Library**: Access to courses, projects, and learning materials
@@ -25,8 +26,25 @@ FuSteps is a comprehensive platform designed to connect students, mentors, alumn
 
 ### For Employers
 - **Job Postings**: Create and manage job/internship listings
-- **Candidate Discovery**: Access student profiles and resumes
+- **Candidate Discovery**: Access student profiles and resumes with verified skill tokens
+- **Skill Verification**: Instant verification of candidate skills through AI-powered tokens
 - **Analytics**: Track application metrics and engagement
+
+## 🚀 AI-Powered Skill Intelligence Features
+
+### 🔹 1. Skill Tokenisation
+Convert verified skills into unique digital tokens (e.g., `SKL-PYT-A4B8C9D2`) with blockchain-style verification for instant authenticity checking.
+
+### 🔹 2. AI-Driven Skill Gap Analysis
+Intelligent analysis comparing student skills against industry requirements for target roles, providing personalized career guidance.
+
+### 🔹 3. Smart Upgrade Recommendations
+AI-powered course recommendations from top providers (Coursera, edX, FuSteps Academy) tailored to fill specific skill gaps.
+
+### 🔹 4. Comprehensive Skill Dashboard
+Unified dashboard with radar charts, analytics, and real-time insights for both students and recruiters.
+
+**[📖 View Detailed AI Features Documentation](./AI_FEATURES_README.md)**
 
 ## Tech Stack
 

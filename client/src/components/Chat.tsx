@@ -54,6 +54,11 @@ export default function Chat({ currentUserId, currentUserType, otherUserId, othe
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
         });
+      } else if (data.type === 'message_notification') {
+        // Send notification if not from current user
+        if (data.sender_id !== currentUserId) {
+          window.dispatchEvent(new CustomEvent('chat-notification', { detail: data }));
+        }
       }
     };
 

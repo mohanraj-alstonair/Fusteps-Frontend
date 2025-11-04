@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Candidate(models.Model):
     ROLE_CHOICES = [
@@ -9,21 +10,87 @@ class Candidate(models.Model):
         ('alumni', 'Alumni'),
         ('admin', 'Admin'),
     ]
+    
+    WORK_STATUS_CHOICES = [
+        ('fresher', 'I\'m a fresher'),
+        ('experienced', 'I\'m experienced'),
+    ]
+    
+    COURSE_CHOICES = [
+        ('btech', 'B.Tech / B.E.'),
+        ('bsc', 'B.Sc'),
+        ('bcom', 'B.Com'),
+        ('ba', 'B.A'),
+        ('bba', 'BBA'),
+        ('bca', 'BCA'),
+        ('mtech', 'M.Tech'),
+        ('msc', 'M.Sc'),
+        ('mba', 'MBA'),
+        ('mca', 'MCA'),
+    ]
+    
+    GRADING_CHOICES = [
+        ('percentage', '% Marks of 100 Maximum'),
+        ('cgpa', 'Scale 10 Grading System'),
+        ('pass', 'Course Requires a Pass'),
+    ]
 
+    # Basic Registration Fields
     id = models.AutoField(primary_key=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    full_name = models.CharField(max_length=100, default='')
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
-    name = models.CharField(max_length=100)
-
-    # Role-specific fields (nullable)
+    mobile_number = models.CharField(max_length=15, default='')
+    work_status = models.CharField(max_length=20, choices=WORK_STATUS_CHOICES, default='fresher')
+    current_city = models.CharField(max_length=100, default='')
+    
+    # Legacy fields
+    first_name = models.CharField(max_length=50, blank=True)
+    last_name = models.CharField(max_length=50, blank=True)
+    name = models.CharField(max_length=100, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
+    
+    # Education Details
+    highest_qualification = models.CharField(max_length=100, blank=True)
+    course = models.CharField(max_length=50, choices=COURSE_CHOICES, blank=True)
+    course_type = models.CharField(max_length=50, default='Full Time', blank=True)
+    specialization = models.CharField(max_length=200, blank=True)
+    university_institute = models.CharField(max_length=300, blank=True)
+    starting_year = models.IntegerField(null=True, blank=True)
+    passing_year = models.IntegerField(null=True, blank=True)
+    grading_system = models.CharField(max_length=20, choices=GRADING_CHOICES, blank=True)
+    marks_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    # Profile Completion
+    resume_headline = models.CharField(max_length=250, blank=True)
+    career_objective = models.TextField(blank=True)
+    preferred_locations = models.CharField(max_length=500, blank=True)  # JSON string
+    expected_salary = models.CharField(max_length=100, blank=True)
+    
+    # Status Fields
+    registration_completed = models.BooleanField(default=False)
+    education_completed = models.BooleanField(default=False)
+    profile_completed = models.BooleanField(default=False)
+    onboarding_completed = models.BooleanField(default=False)
+    
+    # File Storage
+    resume_file = models.BinaryField(null=True, blank=True)
+    resume_filename = models.CharField(max_length=255, null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    
+    # Legacy fields for backward compatibility
+    phone = models.CharField(max_length=20, null=True, blank=True)
+    university = models.CharField(max_length=255, null=True, blank=True)
     year_of_passout = models.IntegerField(null=True, blank=True)
     degree = models.CharField(max_length=100, null=True, blank=True)
-    company_name = models.CharField(max_length=255, null=True, blank=True)
-    location = models.CharField(max_length=255, null=True, blank=True)
     field_of_study = models.CharField(max_length=255, null=True, blank=True)
+    location = models.CharField(max_length=255, null=True, blank=True)
+    company_name = models.CharField(max_length=255, null=True, blank=True)
     expertise = models.CharField(max_length=255, null=True, blank=True)
-    experience = models.IntegerField(null=True, blank=True)  # renamed from experience_years
+    experience = models.IntegerField(null=True, blank=True)
     education_level = models.CharField(max_length=100, null=True, blank=True)
     mentor_role = models.CharField(max_length=100, null=True, blank=True)
     employer_role = models.CharField(max_length=100, null=True, blank=True)
@@ -35,7 +102,16 @@ class Candidate(models.Model):
         return check_password(raw_password, self.password)
 
     def __str__(self):
-        return f"{self.name} ({self.role})"
+        return f"{self.full_name or self.name} ({self.role})"
+    
+    def get_completion_percentage(self):
+        total_steps = 3
+        completed_steps = sum([
+            self.registration_completed,
+            self.education_completed, 
+            self.profile_completed
+        ])
+        return int((completed_steps / total_steps) * 100)
 
     class Meta:
         db_table = 'candidate'
@@ -116,3 +192,7 @@ class BookedSession(models.Model):
     class Meta:
         db_table = 'booked_sessions'
         ordering = ['-created_at']
+
+
+
+

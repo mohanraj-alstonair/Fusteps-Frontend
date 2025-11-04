@@ -3,7 +3,8 @@ import { useLocation } from 'wouter';
 import { BookOpen, Users, Building, Briefcase, CheckCircle, Star, ArrowRight, Play, Globe, Award, Target, Zap } from 'lucide-react';
 import LoginModal from '../auth/LoginModal';
 import RegisterModal from '../auth/RegisterModal';
-import fustepsLogo from '../../assets/fusteps-logo.png';
+
+
 
 export default function LandingPage() {
   const [showLogin, setShowLogin] = useState(false);
@@ -18,7 +19,7 @@ export default function LandingPage() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <img src={fustepsLogo} alt="FuSteps Logo" className="h-10 w-auto" />
+                <img src="/fu steps logo.png" alt="FuSteps Logo" className="h-16 w-auto" />
               </div>
               <div className="hidden md:ml-10 md:flex space-x-8">
                 <a href="#features" className="menu-item text-ink-700 px-3 py-2 text-sm font-medium">Features</a>
@@ -36,7 +37,7 @@ export default function LandingPage() {
               </button>
               <button 
                 onClick={() => setLocation('/signup')}
-                className="bg-ink-900 text-white px-4 py-2 rounded-2xl hover:opacity-90 transition-all duration-300 font-semibold"
+                className="bg-blue-600 text-white px-4 py-2 rounded-2xl hover:bg-blue-700 transition-all duration-300 font-semibold shadow-md"
                 data-testid="button-register"
               >
                 Get Started
@@ -62,7 +63,7 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <button 
                   onClick={() => setLocation('/signup')}
-                  className="bg-sky-500 text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:opacity-90 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  className="bg-blue-600 text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
                   data-testid="button-get-started"
                 >
                   Get Started Free
@@ -292,7 +293,7 @@ export default function LandingPage() {
           </p>
           <button 
             onClick={() => setLocation('/signup')}
-            className="bg-ink-900 text-white px-10 py-5 rounded-2xl text-xl font-semibold hover:opacity-90 transition-all duration-300 transform hover:scale-105 shadow-xl"
+            className="bg-blue-600 text-white px-10 py-5 rounded-2xl text-xl font-semibold hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 shadow-xl"
           >
             Join FuSteps Today
             <ArrowRight className="inline-block ml-3 w-6 h-6" />

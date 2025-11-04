@@ -42,7 +42,7 @@ export default function Internships() {
   const [selectedInternship, setSelectedInternship] = useState<any>(null);
   const [savedInternships, setSavedInternships] = useState<number[]>([]);
   const [appliedInternships, setAppliedInternships] = useState<number[]>([]);
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("browse");
   const [viewMode, setViewMode] = useState("list");
   const [internships, setInternships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,9 +75,10 @@ export default function Internships() {
 
   const getTabInternships = () => {
     switch (activeTab) {
-      case "summer": return filteredInternships.filter(i => i.type === "Summer 2024");
-      case "fall": return filteredInternships.filter(i => i.type === "Fall 2024");
+      case "browse": return filteredInternships;
+      case "applications": return filteredInternships.filter(i => appliedInternships.includes(i.id));
       case "saved": return filteredInternships.filter(i => savedInternships.includes(i.id));
+      case "recommended": return filteredInternships.filter(i => i.featured);
       default: return filteredInternships;
     }
   };
@@ -325,11 +326,11 @@ export default function Internships() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <TabsList>
-          <TabsTrigger value="all">All Internships</TabsTrigger>
-          <TabsTrigger value="summer">Summer 2024</TabsTrigger>
-          <TabsTrigger value="fall">Fall 2024</TabsTrigger>
-          <TabsTrigger value="saved">Saved ({savedInternships.length})</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="browse">Browse Internships</TabsTrigger>
+          <TabsTrigger value="applications">My Applications ({appliedInternships.length})</TabsTrigger>
+          <TabsTrigger value="saved">Saved Jobs ({savedInternships.length})</TabsTrigger>
+          <TabsTrigger value="recommended">Recommended</TabsTrigger>
         </TabsList>
         <TabsContent value={activeTab}>
           {loading ? (

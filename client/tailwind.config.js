@@ -2,10 +2,8 @@
 module.exports = {
   darkMode: ["class"],
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     container: {
@@ -49,6 +47,30 @@ module.exports = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        sky: {
+          100: "#dbeafe",
+          300: "#93c5fd",
+          500: "#3b82f6",
+          700: "#1d4ed8",
+        },
+        leaf: {
+          100: "#dcfce7",
+          300: "#86efac",
+          500: "#22c55e",
+          700: "#15803d",
+        },
+        ember: {
+          100: "#fee2e2",
+          300: "#fca5a5",
+          500: "#ef4444",
+          700: "#b91c1c",
+        },
+        sun: {
+          100: "#fefce8",
+          300: "#fde047",
+          500: "#eab308",
+          700: "#a16207",
         },
       },
       borderRadius: {

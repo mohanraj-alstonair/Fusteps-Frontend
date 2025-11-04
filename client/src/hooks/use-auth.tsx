@@ -57,18 +57,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(user);
         
         // Store user ID in localStorage for API calls
+        localStorage.setItem('userId', data.user.id.toString());
         if (data.user.role === 'mentor') {
           localStorage.setItem('mentorId', data.user.id.toString());
         } else if (data.user.role === 'student') {
           localStorage.setItem('studentId', data.user.id.toString());
         }
         
-        // Only students need onboarding, and only if not completed
-        if (data.role === 'student') {
-          const onboardingCompleted = localStorage.getItem(`onboarding_completed_${data.email}`) === 'true';
-          setNeedsOnboarding(!onboardingCompleted);
+        // Check if user needs onboarding based on backend data
+        if (data.user.role === 'student') {
+          setNeedsOnboarding(!data.user.onboarding_completed);
+          console.log('Login - Student role. Onboarding completed:', data.user.onboarding_completed, 'Needs Onboarding:', !data.user.onboarding_completed);
         }
-        console.log('User logged in:', user);
+        console.log('User logged in successfully:', user);
+        console.log('Login response data:', data);
+        console.log('Setting needsOnboarding to:', !data.user.onboarding_completed);
+        
+        // Force redirect after successful login
+        setTimeout(() => {
+          const expectedPath = data.user.role === 'student' ? '/dashboard/student' : `/dashboard/${data.user.role}`;
+          console.log('Force redirecting to:', expectedPath);
+          window.location.href = expectedPath;
+        }, 100);
       } else {
         const errorMessage = data.message || 'Login failed';
         setError(errorMessage);
@@ -115,16 +125,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(user);
 
         // Store user ID in localStorage for API calls
+        localStorage.setItem('userId', data.candidate_id.toString());
         if (role === 'mentor') {
           localStorage.setItem('mentorId', data.candidate_id.toString());
         } else if (role === 'student') {
           localStorage.setItem('studentId', data.candidate_id.toString());
         }
 
-        // Only students need onboarding, and only if not completed
+        // Students need onboarding after registration
         if (role === 'student') {
-          const onboardingCompleted = localStorage.getItem(`onboarding_completed_${email}`) === 'true';
-          setNeedsOnboarding(!onboardingCompleted);
+          setNeedsOnboarding(data.needs_onboarding || true);
+          console.log('Register - Student role. Needs onboarding:', data.needs_onboarding);
         }
         console.log('User registered:', user);
       } else {
@@ -148,22 +159,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     setLoading(false);
     // Clear stored user IDs
+    localStorage.removeItem('userId');
     localStorage.removeItem('mentorId');
     localStorage.removeItem('studentId');
   };
 
   const completeOnboarding = () => {
     setNeedsOnboarding(false);
-    if (user) {
-      localStorage.setItem(`onboarding_completed_${user.email}`, 'true');
-    }
+    console.log('Onboarding completed for user');
   };
 
-  // Simulate initial auth check on mount
-  // For demo, just set loading false after mount
   useEffect(() => {
-    setLoading(false);
-  }, []);
+    const initializeAuth = async () => {
+      try {
+        // Simulate checking for a stored session (e.g., a token or user data in localStorage)
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const user: User = JSON.parse(storedUser);
+          setUser(user);
+
+          // Students might need onboarding - will be checked on login
+          if (user.role === 'student') {
+            setNeedsOnboarding(false); // Will be set properly on login
+          }
+          console.log('User session restored from localStorage:', user);
+        } else {
+          console.log('No user session found in localStorage.');
+        }
+      } catch (e) {
+        console.error('Failed to restore user session from localStorage', e);
+        localStorage.removeItem('user'); // Clear potentially corrupted data
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, []); // Run only once on mount
+
+  // Update localStorage when user changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{

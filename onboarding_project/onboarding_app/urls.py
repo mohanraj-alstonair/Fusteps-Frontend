@@ -1,13 +1,24 @@
 from django.urls import path
 from . import views
+from . import skill_views
 
 urlpatterns = [
     path('register/', views.register, name='register'),
+    path('register/education/', views.register_education, name='register_education'),
+    path('register/complete/', views.complete_profile, name='complete_profile'),
     path('signup/', views.register, name='signup'),
     path('login/', views.login, name='login'),
     path('forgot-password/', views.forgot_password, name='forgot_password'),
+    path('onboarding/', views.onboarding, name='onboarding'),
+    path('profile/<int:user_id>/', views.get_user_profile, name='get_user_profile'),
+    path('profile/<int:user_id>/update/', views.update_user_profile, name='update_user_profile'),
+    path('profile/<int:user_id>/data/', views.get_profile_data, name='get_profile_data'),
+    path('profile/<int:user_id>/skill-recommendations/', views.get_skill_recommendations, name='get_skill_recommendations'),
+    path('skills/all/', views.get_all_skills, name='get_all_skills'),
     path('mentors/', views.get_mentors, name='get_mentors'),
     path('resumes/upload/', views.upload_resume, name='upload_resume'),
+    path('resumes/<int:user_id>/', views.get_resume, name='get_resume'),
+    path('profile/<int:user_id>/resume/', views.get_resume, name='get_profile_resume'),
     # Connection and Chat APIs
     path('student/connections/', views.list_student_connections, name='list_student_connections'),
     path('messages/', views.send_message, name='send_message'),
@@ -35,4 +46,9 @@ urlpatterns = [
     path('submit-feedback/', views.submit_feedback, name='submit_feedback'),
     path('mentor/feedback/', views.get_mentor_feedback, name='get_mentor_feedback'),
     path('submit-mentor-feedback/', views.submit_mentor_feedback, name='submit_mentor_feedback'),
+    path('profile/<int:user_id>/add-skill/', views.add_user_skill, name='add_user_skill'),
+    # Skill Management APIs
+    path('skills/manage/<int:user_id>/', skill_views.manage_skills, name='manage_skills'),
+    path('skills/all/', skill_views.get_all_skills, name='get_all_skills_new'),
+    path('skills/create-defaults/', skill_views.create_default_skills, name='create_default_skills'),
 ]

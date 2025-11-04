@@ -1,5 +1,5 @@
-import { Switch, Route, useLocation } from "wouter";
-import { Calendar, BookOpen, Users, FolderOpen, Library as LibraryIcon, Globe, Settings as SettingsIcon, User } from "lucide-react";
+import { Switch, Route, useLocation, useRoute } from "wouter";
+import { Calendar, BookOpen, Users, FolderOpen, Library as LibraryIcon, Globe, Settings as SettingsIcon, User, Award, Briefcase, Brain } from "lucide-react";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import Internships from "./Internships";
 import Courses from "./Courses";
@@ -11,29 +11,34 @@ import JobTools from "./JobTools";
 import Notifications from "./Notifications";
 import Profile from "./Profile";
 import StudentSettings from "./Settings";
+import Skills from "./Skills";
 import { CalendarModal } from "../../components/ui/CalendarModal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const menuItems = [
   { id: 'overview', label: 'Overview', icon: <Calendar />, path: '/dashboard/student' },
   { id: 'internships', label: 'Internships', icon: <BookOpen />, path: '/dashboard/student/internships' },
-  { id: 'courses', label: 'Courses', icon: <BookOpen />, path: '/dashboard/student/courses' },
+  { id: 'job-tools', label: 'Jobs & Career', icon: <Briefcase />, path: '/dashboard/student/job-tools' },
+  { id: 'courses', label: '🚀 Courses & AI Skills', icon: <Brain />, path: '/dashboard/student/courses' },
   { id: 'mentors', label: 'Mentors', icon: <Users />, path: '/dashboard/student/mentors' },
   { id: 'projects', label: 'Projects', icon: <FolderOpen />, path: '/dashboard/student/projects' },
   { id: 'library', label: 'Library', icon: <LibraryIcon />, path: '/dashboard/student/library' },
   { id: 'study-abroad', label: 'Study Abroad', icon: <Globe />, path: '/dashboard/student/study-abroad' },
-  { id: 'job-tools', label: 'Job Tools', icon: <SettingsIcon />, path: '/dashboard/student/job-tools' },
 ];
 
-function StudentOverview() {
+function StudentOverview({ userData }) {
   const [, setLocation] = useLocation();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
-  const events = [
+  const [recentApplications, setRecentApplications] = useState([
+    { title: 'Frontend Developer', company: 'TechCorp Inc.', status: 'In Review', statusColor: 'sun' },
+    { title: 'UX Designer Intern', company: 'Design Studio', status: 'Interview', statusColor: 'leaf' },
+    { title: 'Data Analyst', company: 'FinanceMax', status: 'Rejected', statusColor: 'ember' }
+  ]);
+  const [upcomingEvents, setUpcomingEvents] = useState([
     { title: 'Career Fair 2024', from: new Date('2024-04-15T10:00:00'), to: new Date('2024-04-15T12:00:00') },
     { title: 'Mentoring Session', from: new Date('2024-04-18T14:00:00'), to: new Date('2024-04-18T15:00:00') },
     { title: 'React Workshop', from: new Date('2024-04-22T18:00:00'), to: new Date('2024-04-22T20:00:00') }
-  ];
+  ]);
 
   const handleViewAll = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -55,7 +60,7 @@ function StudentOverview() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-ink-500 text-sm">Applications</p>
-              <p className="text-2xl font-bold text-ink-900" data-testid="text-applications">12</p>
+              <p className="text-2xl font-bold text-ink-900" data-testid="text-applications">{userData.applications}</p>
             </div>
             <div className="w-12 h-12 bg-sun-100 rounded-xl flex items-center justify-center">
               <BookOpen className="w-6 h-6 text-sun-700" />
@@ -67,7 +72,7 @@ function StudentOverview() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-ink-500 text-sm">Interviews</p>
-              <p className="text-2xl font-bold text-ink-900" data-testid="text-interviews">3</p>
+              <p className="text-2xl font-bold text-ink-900" data-testid="text-interviews">{userData.interviews}</p>
             </div>
             <div className="w-12 h-12 bg-leaf-100 rounded-xl flex items-center justify-center">
               <Users className="w-6 h-6 text-leaf-700" />
@@ -79,7 +84,7 @@ function StudentOverview() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-ink-500 text-sm">Courses</p>
-              <p className="text-2xl font-bold text-ink-900" data-testid="text-courses">5</p>
+              <p className="text-2xl font-bold text-ink-900" data-testid="text-courses">{userData.courses}</p>
             </div>
             <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center">
               <BookOpen className="w-6 h-6 text-slate-700" />
@@ -87,15 +92,67 @@ function StudentOverview() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-card p-6 border-l-4 border-ember-500">
+        <div className={`bg-white rounded-2xl shadow-card p-6 border-l-4 ${
+          userData.profileScore >= 80 ? 'border-green-500' :
+          userData.profileScore >= 60 ? 'border-yellow-500' :
+          userData.profileScore >= 40 ? 'border-orange-500' : 'border-red-500'
+        }`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-ink-500 text-sm">Profile Score</p>
-              <p className="text-2xl font-bold text-ink-900" data-testid="text-profile-score">85%</p>
+              <div className="flex items-center gap-2">
+                <p className="text-2xl font-bold text-ink-900" data-testid="text-profile-score">{userData.profileScore}%</p>
+                <span className="text-lg">
+                  {userData.profileScore >= 80 ? '🟢' :
+                   userData.profileScore >= 60 ? '🟡' :
+                   userData.profileScore >= 40 ? '🟠' : '🔴'}
+                </span>
+              </div>
+              <p className={`text-xs font-medium ${
+                userData.profileScore >= 80 ? 'text-green-700' :
+                userData.profileScore >= 60 ? 'text-yellow-700' :
+                userData.profileScore >= 40 ? 'text-orange-700' : 'text-red-700'
+              }`}>
+                {userData.profileScore >= 80 ? 'Highly Employable' :
+                 userData.profileScore >= 60 ? 'Job Ready' :
+                 userData.profileScore >= 40 ? 'Needs Skill Improvement' : 'Incomplete Profile'}
+              </p>
             </div>
-            <div className="w-12 h-12 bg-ember-100 rounded-xl flex items-center justify-center">
-              <User className="w-6 h-6 text-ember-700" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+              userData.profileScore >= 80 ? 'bg-green-100' :
+              userData.profileScore >= 60 ? 'bg-yellow-100' :
+              userData.profileScore >= 40 ? 'bg-orange-100' : 'bg-red-100'
+            }`}>
+              <User className={`w-6 h-6 ${
+                userData.profileScore >= 80 ? 'text-green-700' :
+                userData.profileScore >= 60 ? 'text-yellow-700' :
+                userData.profileScore >= 40 ? 'text-orange-700' : 'text-red-700'
+              }`} />
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Skills Promotion Banner */}
+      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-card p-6 mb-8 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold mb-2 flex items-center">
+              <Brain className="w-8 h-8 mr-3" />
+              🚀 NEW: AI-Powered Skills Management
+            </h3>
+            <p className="text-blue-100 mb-4">
+              Generate digital skill tokens, get AI-powered gap analysis, and receive personalized course recommendations!
+            </p>
+            <button 
+              onClick={() => setLocation('/dashboard/student/courses')}
+              className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+            >
+              Explore AI Skills & Courses →
+            </button>
+          </div>
+          <div className="hidden md:block">
+            <div className="text-6xl opacity-20">🤖</div>
           </div>
         </div>
       </div>
@@ -109,11 +166,7 @@ function StudentOverview() {
           </div>
 
           <div className="space-y-4">
-            {[
-              { title: 'Frontend Developer', company: 'TechCorp Inc.', status: 'In Review', statusColor: 'sun' },
-              { title: 'UX Designer Intern', company: 'Design Studio', status: 'Interview', statusColor: 'leaf' },
-              { title: 'Data Analyst', company: 'FinanceMax', status: 'Rejected', statusColor: 'ember' }
-            ].map((app, index) => (
+            {recentApplications.map((app, index) => (
               <div key={index} className="flex items-center justify-between p-4 border border-neutral-100 rounded-xl hover:bg-neutral-25 transition-custom">
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
@@ -140,7 +193,7 @@ function StudentOverview() {
           </div>
 
           <div className="space-y-4">
-            {events.map((event, index) => (
+            {upcomingEvents.map((event, index) => (
               <div key={index} className="flex items-start space-x-4 p-4 border border-neutral-100 rounded-xl hover:bg-neutral-25 transition-custom">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-bold text-blue-800">{new Date(event.from).getDate()}</span>
@@ -154,151 +207,181 @@ function StudentOverview() {
           </div>
         </div>
       </div>
-      <CalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} events={events} />
+      <CalendarModal open={isCalendarOpen} onOpenChange={setIsCalendarOpen} events={upcomingEvents} />
     </div>
   );
 }
 
 export default function StudentDashboard() {
+  const [userData, setUserData] = useState({
+    applications: 0,
+    interviews: 0,
+    courses: 0,
+    profileScore: 0,
+    name: 'Student'
+  });
+  const [location] = useLocation();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const studentId = localStorage.getItem('studentId') || user.id;
+        
+        if (studentId) {
+          const profileResponse = await fetch(`http://localhost:8000/api/profile/${studentId}/`);
+          if (profileResponse.ok) {
+            const profile = await profileResponse.json();
+            console.log('Profile data:', profile);
+            
+            const fields = ['name', 'email', 'phone', 'university', 'field_of_study', 'degree'];
+            const completedFields = fields.filter(field => profile[field] && profile[field].toString().trim() !== '');
+            const profileScore = Math.round((completedFields.length / fields.length) * 100);
+            
+            console.log('Profile completion calculation:', {
+              fields,
+              completedFields,
+              profileScore
+            });
+            
+            setUserData({
+              applications: 3,
+              interviews: 1,
+              courses: 2,
+              profileScore,
+              name: profile.name || 'Student'
+            });
+          } else {
+            console.error('Failed to fetch profile:', profileResponse.status);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+    
+    fetchUserData();
+  }, []);
+
   const getCurrentPage = (path: string) => {
     if (path === '/dashboard/student' || path === '/dashboard/student/') return 'overview';
     const segments = path.split('/');
     return segments[segments.length - 1] || 'overview';
   };
+  
+  console.log('StudentDashboard - Current location:', location);
 
   return (
     <Switch>
-      <Route path="/dashboard/student">
-        {() => (
-          <DashboardLayout
-            title="Welcome back, Sarah!"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <StudentOverview />
-          </DashboardLayout>
-        )}
-      </Route>
       <Route path="/dashboard/student/internships">
-        {() => (
-          <DashboardLayout
-            title="Internship Opportunities"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <Internships />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="Internship Opportunities"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="internships"
+        >
+          <Internships />
+        </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/courses">
-        {() => (
-          <DashboardLayout
-            title="Course Catalog"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <Courses />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="Course Catalog"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="courses"
+        >
+          <Courses />
+        </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/mentors">
-        {() => (
-          <DashboardLayout
-            title="Find Mentors"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <Mentors />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="Find Mentors"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="mentors"
+        >
+          <Mentors />
+        </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/projects">
-        {() => (
-          <DashboardLayout
-            title="My Projects"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <Projects />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="My Projects"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="projects"
+        >
+          <Projects />
+        </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/library">
-        {() => (
-          <DashboardLayout
-            title="Resource Library"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <Library />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="Resource Library"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="library"
+        >
+          <Library />
+        </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/study-abroad">
-        {() => (
-          <DashboardLayout
-            title="Study Abroad Programs"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <StudyAbroad />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="Study Abroad Programs"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="study-abroad"
+        >
+          <StudyAbroad />
+        </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/job-tools">
-        {() => (
-          <DashboardLayout
-            title="Career Tools"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <JobTools />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="Jobs & Career Tools"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="job-tools"
+        >
+          <JobTools />
+        </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/notifications">
-        {() => (
-          <DashboardLayout
-            title="Notifications"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <Notifications />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="Notifications"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="notifications"
+        >
+          <Notifications />
+        </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/profile">
-        {() => (
-          <DashboardLayout
-            title="My Profile"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <Profile />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="My Profile"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="profile"
+        >
+          <Profile />
+        </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/settings">
-        {() => (
-          <DashboardLayout
-            title="Account Settings"
-            subtitle="Student Dashboard"
-            menuItems={menuItems}
-            currentPage={getCurrentPage(window.location.pathname)}
-          >
-            <StudentSettings />
-          </DashboardLayout>
-        )}
+        <DashboardLayout
+          title="Account Settings"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="settings"
+        >
+          <StudentSettings />
+        </DashboardLayout>
+      </Route>
+      <Route path="/dashboard/student">
+        <DashboardLayout
+          title={`Welcome back, ${userData.name}!`}
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="overview"
+        >
+          <StudentOverview userData={userData} />
+        </DashboardLayout>
       </Route>
     </Switch>
   );

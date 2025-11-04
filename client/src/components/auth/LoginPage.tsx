@@ -5,6 +5,8 @@ import { useAuth } from '../../hooks/use-auth';
 import { GraduationCap, Users, Briefcase, Star } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
+
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,8 +24,9 @@ export default function LoginPage() {
       setMessage('');
       try {
         await login(email, password);
-        // After successful login, navigation is handled by AppRouter in App.tsx
+        console.log('Login successful, should redirect now');
       } catch (error) {
+        console.error('Login error:', error);
         setMessage((error as Error).message || 'Login failed. Please check your credentials.');
       } finally {
         setIsLoading(false);
@@ -101,6 +104,9 @@ export default function LoginPage() {
         {/* Login Details Card */}
         <Card className="bg-white shadow-xl">
           <CardHeader>
+            <div className="flex justify-center mb-4">
+              <img src="/fu steps logo.png" alt="FuSteps Logo" className="h-16 w-auto" />
+            </div>
             <CardTitle className="text-2xl font-bold text-gray-900 text-center">Sign In</CardTitle>
             <p className="text-gray-600 text-center">Welcome back! Please sign in to your account</p>
           </CardHeader>

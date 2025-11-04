@@ -41,6 +41,7 @@ import {
   Trash2,
   Star
 } from 'lucide-react';
+import MessageNotificationBadge from '../../components/MessageNotificationBadge';
 
 interface Mentee {
   id: string;
@@ -360,6 +361,12 @@ export default function Mentees() {
         return prev;
       });
       
+      // Trigger notification for student
+      if ((window as any).showMessageNotification) {
+        const mentorName = selectedMenteeForMessage?.name || 'Mentor';
+        (window as any).showMessageNotification(mentorName, mentorId.toString());
+      }
+      
       setMessageForm({ message: '' });
     } catch (err) {
       console.error('Error sending message:', err);
@@ -627,10 +634,11 @@ export default function Mentees() {
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Message
                       {unreadMessages[mentee.id] > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                        <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs animate-pulse">
                           {unreadMessages[mentee.id]}
                         </span>
                       )}
+                      <MessageNotificationBadge senderId={mentee.id} unreadCount={unreadMessages[mentee.id]} />
                     </Button>
                     {/* Feedback Button */}
                     <Button

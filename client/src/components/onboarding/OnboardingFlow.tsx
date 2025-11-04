@@ -360,8 +360,17 @@ export default function OnboardingForm({ simpleMode = false }: OnboardingFormPro
       setLoading(true);
       setError('');
 
-      // Prepare data with correct field names expected by backend
-      const data = new URLSearchParams();
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        setError('User ID not found. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      // Prepare FormData for file upload
+      const data = new FormData();
+      data.append('user_id', userId);
+      
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'skills') {
           data.append(key, JSON.stringify(value));
@@ -378,15 +387,18 @@ export default function OnboardingForm({ simpleMode = false }: OnboardingFormPro
         }
       });
 
+      // Add resume file if available
+      if (resumeFile) {
+        data.append('resume_file', resumeFile);
+      }
+
       try {
         const response = await api.post('/api/onboarding/', data, {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
 
         alert(response.data.message);
-        if (!simpleMode) {
-          completeOnboarding();
-        }
+        completeOnboarding();
       } catch (error) {
         console.error('Submission error:', error);
         setError(`Failed to submit form: ${(error as Error).message}. Please check if Django backend is running.`);
@@ -561,7 +573,7 @@ export default function OnboardingForm({ simpleMode = false }: OnboardingFormPro
               <button
                 onClick={nextStep}
                 disabled={!careerGoal}
-                className="bg-sun-600 text-white px-8 py-3 rounded-xl hover:bg-sun-700 focus:ring-4 focus:ring-sun-300 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:bg-gray-400 disabled:cursor-not-allowed disabled:shadow-none"
+                className="bg-blue-600 text-white px-8 py-3 rounded-xl hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:bg-blue-300 disabled:cursor-not-allowed"
                 data-testid="button-continue-step1"
               >
                 Continue
@@ -687,7 +699,7 @@ export default function OnboardingForm({ simpleMode = false }: OnboardingFormPro
               <button
                 onClick={nextStep}
                 disabled={!formData.name || !formData.email || !formData.phone || !!contactError || loading}
-                className="bg-ink-900 text-white px-6 py-3 rounded-lg hover:opacity-90 transition-custom font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-custom font-semibold disabled:bg-blue-300 disabled:cursor-not-allowed"
                 data-testid="button-continue-step2"
               >
                 Continue
@@ -812,7 +824,7 @@ export default function OnboardingForm({ simpleMode = false }: OnboardingFormPro
                   !formData.university ||
                   !formData.graduationYear
                 }
-                className="bg-ink-900 text-white px-6 py-3 rounded-lg hover:opacity-90 transition-custom font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-custom font-semibold disabled:bg-blue-300 disabled:cursor-not-allowed"
                 data-testid="button-continue-step3"
               >
                 Continue
@@ -832,30 +844,58 @@ export default function OnboardingForm({ simpleMode = false }: OnboardingFormPro
                 <label className="block text-sm font-semibold text-ink-700 mb-2">Key Skills</label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {formData.skills.map((skill, index) => (
-                    <span key={index} className="bg-sun-100 text-ink-900 px-3 py-1 rounded-full text-sm">
+                    <span key={index} className="bg-blue-100 text-blue-900 px-3 py-1 rounded-full text-sm font-medium">
                       {skill}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            skills: prev.skills.filter((_, i) => i !== index),
+                          }));
+                        }}
+                        className="ml-2 text-blue-700 hover:text-blue-900"
+                      >
+                        ×
+                      </button>
                     </span>
                   ))}
                 </div>
-                <input
-                  type="text"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sun-500 focus:border-transparent transition-custom"
-                  placeholder="Add skills (press Enter to add)"
-                  data-testid="input-skills"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const input = e.target as HTMLInputElement;
-                      if (input.value.trim()) {
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    className="px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-custom"
+                    placeholder="Skill name"
+                    id="skill-input"
+                  />
+                  <select 
+                    id="proficiency-select"
+                    className="px-3 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-custom"
+                  >
+                    <option value="BEGINNER">Beginner</option>
+                    <option value="INTERMEDIATE">Intermediate</option>
+                    <option value="ADVANCED">Advanced</option>
+                    <option value="EXPERT">Expert</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-custom font-semibold"
+                    onClick={() => {
+                      const skillInput = document.getElementById('skill-input') as HTMLInputElement;
+                      const proficiencySelect = document.getElementById('proficiency-select') as HTMLSelectElement;
+                      if (skillInput.value.trim()) {
                         setFormData((prev) => ({
                           ...prev,
-                          skills: [...prev.skills, input.value.trim()],
+                          skills: [...prev.skills, `${skillInput.value.trim()} (${proficiencySelect.value})`],
                         }));
-                        input.value = '';
+                        skillInput.value = '';
+                        proficiencySelect.value = 'BEGINNER';
                       }
-                    }
-                  }}
-                />
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -883,7 +923,7 @@ export default function OnboardingForm({ simpleMode = false }: OnboardingFormPro
               </button>
               <button
                 onClick={nextStep}
-                className="bg-ink-900 text-white px-6 py-3 rounded-lg hover:opacity-90 transition-custom font-semibold"
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-custom font-semibold"
                 data-testid="button-continue-step4"
               >
                 Continue
@@ -966,7 +1006,7 @@ export default function OnboardingForm({ simpleMode = false }: OnboardingFormPro
                     !formData.university ||
                     !formData.graduationYear
                   }
-                  className="bg-ink-900 text-white px-6 py-3 rounded-lg hover:opacity-90 transition-custom font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-custom font-semibold disabled:bg-blue-300 disabled:cursor-not-allowed"
                   data-testid="button-complete-setup"
                 >
                   Complete Setup

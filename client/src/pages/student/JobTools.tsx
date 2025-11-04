@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { getJobRecommendations, applyToJob } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 
 // Icons
@@ -87,7 +90,10 @@ export default function JobTools() {
   const [cgpa, setCgpa] = useState('');
 
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobRecommendations, setJobRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
   const applications: Application[] = [
     {
       id: '1',
@@ -120,7 +126,39 @@ export default function JobTools() {
     }
   ];
 
+  const fetchJobRecommendations = async () => {
+    try {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+
+      const response = await getJobRecommendations(parseInt(userId));
+      setJobRecommendations(response.data.recommendations || []);
+    } catch (error) {
+      console.error('Error fetching job recommendations:', error);
+    }
+  };
+
+  const handleApplyToJob = async (jobId: number) => {
+    try {
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        toast({ title: "Error", description: "Please log in to apply", variant: "destructive" });
+        return;
+      }
+
+      await applyToJob(jobId, parseInt(userId), coverLetter || "I am interested in this position.");
+      toast({ title: "Success", description: "Application submitted successfully!" });
+      setShowApplicationModal(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to apply to job", variant: "destructive" });
+    }
+  };
+
   useEffect(() => {
+    if (user || localStorage.getItem('userId')) {
+      fetchJobRecommendations();
+    }
+    
     const mockJobs: Job[] = [
       {
         id: '1',
@@ -338,6 +376,8 @@ export default function JobTools() {
           <TabsTrigger value="saved">Saved Jobs</TabsTrigger>
           <TabsTrigger value="recommended">Recommended</TabsTrigger>
         </TabsList>
+
+
 
         <TabsContent value="browse" className="space-y-6">
           <Card className="bg-white rounded-2xl shadow-sm border-0">
@@ -632,77 +672,125 @@ export default function JobTools() {
         </TabsContent>
 
         <TabsContent value="recommended" className="space-y-6">
-          <div className="space-y-4">
-            {jobs
-              .filter(job => job.matchScore && job.matchScore > 80)
-              .sort((a: Job, b: Job) => (b.matchScore || 0) - (a.matchScore || 0))
-              .map((job: Job) => (
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">Personalized Job Recommendations</h2>
+              <p className="text-gray-600 mt-1">
+                Jobs matched to your skills and profile
+              </p>
+            </div>
+          </div>
+
+          {jobRecommendations.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Briefcase className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Job Recommendations</h3>
+                <p className="text-gray-600 mb-4">
+                  Add more skills to your profile to get personalized job recommendations
+                </p>
+                <Button onClick={() => window.location.href = '/dashboard/student/skills'}>
+                  Add Skills
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {jobRecommendations.map((job: any) => (
                 <Card key={job.id} className="bg-white rounded-2xl shadow-sm border-0 hover:shadow-lg transition-all duration-300">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-start space-x-4 flex-1">
                         <Avatar className="h-12 w-12">
-                          <AvatarImage src={job.companyLogo} />
                           <AvatarFallback className="bg-gray-600 text-white">
-                            {job.company.split(' ').map((n: string) => n[0]).join('')}
+                            {job.company_name.split(' ').map((n: string) => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <h3 className="font-semibold text-gray-900 text-xl mb-1">{job.title}</h3>
-                              <p className="text-gray-600 text-lg">{job.company}</p>
+                              <p className="text-gray-600 text-lg">{job.company_name}</p>
                             </div>
                             <div className="text-right">
-                              <Badge className="bg-gray-900 text-white mb-2">
-                                {job.matchScore}% match
+                              <Badge 
+                                variant="secondary" 
+                                className={
+                                  job.match_score >= 80 ? "bg-green-100 text-green-800" :
+                                  job.match_score >= 60 ? "bg-yellow-100 text-yellow-800" :
+                                  "bg-red-100 text-red-800"
+                                }
+                              >
+                                {job.match_score}% Match
                               </Badge>
-                              <p className="text-sm text-gray-500">High match</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
                             <span className="flex items-center">
                               <MapPin className="w-4 h-4 mr-1" />
-                              {job.location}
+                              {job.location} {job.is_remote && "(Remote)"}
                             </span>
                             <span className="flex items-center">
                               <DollarSign className="w-4 h-4 mr-1" />
-                              {formatSalary(job.salary)}
+                              ${job.salary_min} - ${job.salary_max}
+                            </span>
+                            <span className="flex items-center">
+                              <Clock className="w-4 h-4 mr-1" />
+                              {job.job_type.replace('_', ' ')}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="outline" className={getTypeColor(job.type)}>
-                              {job.type.replace('-', ' ')}
-                            </Badge>
-                            <Badge variant="outline" className={getExperienceColor(job.experience)}>
-                              {job.experience} level
+                          <div className="flex items-center space-x-2 mb-3">
+                            <Badge variant="outline" className="border-orange-300 text-orange-700">
+                              {job.experience_level}
                             </Badge>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex space-x-2">
-                      <Button
-                        className="flex-1 bg-fusteps-red text-white hover:bg-red-600 rounded-lg"
-                        onClick={() => openApplicationModal(job)}
+                    <p className="text-gray-600 mb-4 line-clamp-2">{job.description}</p>
+
+                    <div className="mb-4">
+                      <h4 className="font-medium text-gray-900 mb-2">Your Matching Skills:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {job.matching_skills.map((skill: string, index: number) => (
+                          <Badge key={index} variant="secondary" className="bg-green-100 text-green-800">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    {job.missing_skills.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="font-medium text-gray-900 mb-2">Skills to Learn:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {job.missing_skills.map((skill: string, index: number) => (
+                            <Badge key={index} variant="outline" className="border-orange-300 text-orange-700">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-gray-600">
+                        <Badge variant="outline">{job.experience_level}</Badge>
+                      </div>
+                      <Button 
+                        onClick={() => handleApplyToJob(job.id)}
+                        className="bg-fusteps-red hover:bg-red-600 text-white"
                       >
                         <Send className="w-4 h-4 mr-2" />
                         Apply Now
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="bg-white border-gray-300 text-gray-900 hover:bg-gray-50 rounded-lg"
-                        onClick={() => { setSelectedJob(job); setShowJobDetailsModal(true); }}
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Learn More
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
               ))}
-          </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
