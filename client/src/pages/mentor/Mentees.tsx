@@ -41,7 +41,6 @@ import {
   Trash2,
   Star
 } from 'lucide-react';
-import MessageNotificationBadge from '../../components/MessageNotificationBadge';
 
 interface Mentee {
   id: string;
@@ -70,8 +69,6 @@ interface Mentee {
   };
   recentActivity: string[];
 }
-
-
 
 interface MenteeRequest {
   id: number;
@@ -201,7 +198,6 @@ export default function Mentees() {
         }
         setUnreadMessages(unreadCounts);
 
-        // Fetch mentor feedbacks
         const feedbackResponse = await getMentorFeedback(parseInt(mentorId));
         const feedbackMap: Record<string, { rating: number; review: string }> = {};
         feedbackResponse.data.forEach((feedback: any) => {
@@ -219,7 +215,6 @@ export default function Mentees() {
 
     fetchData();
     const interval = setInterval(fetchData, 5000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -322,9 +317,6 @@ export default function Mentees() {
         mentor_feedback: feedbackForm.review,
       });
 
-      console.log('Mentor feedback submitted successfully');
-
-      // Update mentorFeedbacks state after submission
       setMentorFeedbacks(prev => ({
         ...prev,
         [selectedMenteeForFeedback.id]: { rating: feedbackForm.rating, review: feedbackForm.review }
@@ -360,12 +352,6 @@ export default function Mentees() {
         }
         return prev;
       });
-      
-      // Trigger notification for student
-      if ((window as any).showMessageNotification) {
-        const mentorName = selectedMenteeForMessage?.name || 'Mentor';
-        (window as any).showMessageNotification(mentorName, mentorId.toString());
-      }
       
       setMessageForm({ message: '' });
     } catch (err) {
@@ -461,7 +447,6 @@ export default function Mentees() {
   const pendingRequests = menteeRequests.filter(req => req.status === 'pending').length;
   const pendingBookingRequests = bookingRequests.filter((req: any) => req.status === 'pending').length;
 
-  // Star Rating Component
   const StarRating = ({ rating, onChange }: { rating: number; onChange?: (v: number) => void }) => {
     return (
       <div className="flex space-x-1">
@@ -626,6 +611,7 @@ export default function Mentees() {
                       <Eye className="w-4 h-4 mr-2" />
                       View Details
                     </Button>
+
                     <Button 
                       size="sm" 
                       className="bg-green-600 hover:bg-green-700 text-white relative"
@@ -634,13 +620,12 @@ export default function Mentees() {
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Message
                       {unreadMessages[mentee.id] > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs animate-pulse">
+                        <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold animate-pulse shadow-lg">
                           {unreadMessages[mentee.id]}
                         </span>
                       )}
-                      <MessageNotificationBadge senderId={mentee.id} unreadCount={unreadMessages[mentee.id]} />
                     </Button>
-                    {/* Feedback Button */}
+
                     <Button
                       size="sm"
                       variant="outline"
@@ -657,17 +642,13 @@ export default function Mentees() {
           </div>
         </TabsContent>
 
-        {/* === Sessions, Goals, Requests, Booking Tabs (unchanged) === */}
-        {/* ... [Rest of your tabs remain exactly the same] ... */}
-        {/* (You can keep the rest of your TabsContent as-is) */}
-
         <TabsContent value="sessions" className="space-y-6">
           <div className="mb-6">
             <h2 className="text-2xl font-semibold text-gray-900">Session History</h2>
           </div>
           <div className="space-y-4">
             {acceptedBookings.filter((session: any) => {
-              const sessionDateTime = new Date(session.scheduled_date_time || session.preferred230_date_time);
+              const sessionDateTime = new Date(session.scheduled_date_time || session.preferred_date_time);
               const now = new Date();
               return sessionDateTime >= now || session.status === 'completed';
             }).map((session: any) => (
@@ -941,7 +922,6 @@ export default function Mentees() {
         </TabsContent>
       </Tabs>
 
-      {/* === Message Modal === */}
       <Dialog open={showMessageModal} onOpenChange={setShowMessageModal}>
         <DialogContent className="max-w-md w-full max-h-[90vh] h-[600px] p-0 flex flex-col">
           <div className="bg-green-600 text-white p-4 flex items-center space-x-3 flex-shrink-0">
@@ -1028,7 +1008,6 @@ export default function Mentees() {
         </DialogContent>
       </Dialog>
 
-      {/* === Feedback Modal === */}
       <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
         <DialogContent className="max-w-md w-full">
           <DialogHeader>
@@ -1085,7 +1064,6 @@ export default function Mentees() {
         </DialogContent>
       </Dialog>
 
-      {/* === Add Goal Modal === */}
       <Dialog open={showAddGoal} onOpenChange={setShowAddGoal}>
         <DialogContent className="max-w-md w-full">
           <DialogHeader>
@@ -1135,7 +1113,6 @@ export default function Mentees() {
         </DialogContent>
       </Dialog>
 
-      {/* === Mentee Details Modal === */}
       <Dialog open={showMenteeDetails} onOpenChange={setShowMenteeDetails}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1242,7 +1219,7 @@ export default function Mentees() {
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Send Message
                   {unreadMessages[selectedMentee.id] > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                    <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold animate-pulse shadow-lg">
                       {unreadMessages[selectedMentee.id]}
                     </span>
                   )}
