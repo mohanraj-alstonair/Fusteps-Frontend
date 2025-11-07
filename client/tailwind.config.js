@@ -72,6 +72,9 @@ module.exports = {
           500: "#eab308",
           700: "#a16207",
         },
+        fusteps: {
+          red: "#dc2626",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

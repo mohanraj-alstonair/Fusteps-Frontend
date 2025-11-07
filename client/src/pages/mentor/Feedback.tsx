@@ -1,6 +1,3 @@
-
-
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { getMentorFeedback } from '@/lib/api';
-import { Star, MessageSquare, Filter, Download, BarChart3, Search } from 'lucide-react';
+import { Star, MessageSquare, Filter, BarChart3, Search } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface FeedbackItem {
@@ -232,15 +229,9 @@ export default function Feedback() {
                 <Filter className="w-4 h-4 mr-2" />
                 {showSearch ? 'Hide Filter' : 'Filter'}
               </Button>
-              <Button 
-                variant="outline"
-                className="border-gray-300 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
             </div>
           </div>
+
           {showSearch && (
             <div className="mb-6 transform transition-all duration-300 ease-in-out">
               <div className="relative max-w-md">
@@ -254,22 +245,36 @@ export default function Feedback() {
               </div>
             </div>
           )}
+
           <div className="space-y-4">
-            {filteredFeedback.map((feedback) => (
-              <div 
-                key={feedback.id} 
-                className="p-5 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900 text-lg">{feedback.menteeName}</h3>
-                  <div className="flex items-center space-x-2">
-                    {renderStars(feedback.rating)}
-                    <span className="text-sm font-medium text-gray-600">{feedback.rating}/5</span>
+            {filteredFeedback.length > 0 ? (
+              filteredFeedback.map((feedback) => (
+                <div 
+                  key={feedback.id} 
+                  className="p-5 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900 text-lg">{feedback.menteeName}</h3>
+                    <div className="flex items-center space-x-2">
+                      {renderStars(feedback.rating)}
+                      <span className="text-sm font-medium text-gray-600">{feedback.rating}/5</span>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 leading-relaxed">{feedback.feedback}</p>
+                  <div className="flex items-center justify-between mt-4">
+                    <span className="text-xs text-gray-400">
+                      {new Date(feedback.sessionDate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </span>
                   </div>
                 </div>
-                <p className="text-gray-600 leading-relaxed">{feedback.feedback}</p>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-center text-gray-500 py-8">No reviews match your search.</p>
+            )}
           </div>
         </TabsContent>
 
@@ -298,56 +303,56 @@ export default function Feedback() {
                 })}
               </CardContent>
             </Card>
-          </div>
 
-          <Card className="border-0 shadow-xl hover:shadow-2xl transition-shadow duration-300 bg-gradient-to-br from-white to-gray-50">
-            <CardHeader>
-              <CardTitle className="flex items-center text-2xl text-gray-800">
-                <BarChart3 className="w-6 h-6 mr-3 text-blue-500" />
-                Performance Trends
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={ratingData} margin={{ top: 20, right: 30, left: 20, bottom: 30 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="rating" 
-                      label={{ value: 'Rating', position: 'bottom', offset: 0, fill: '#4b5563' }} 
-                      stroke="#4b5563"
-                    />
-                    <YAxis 
-                      label={{ value: 'Number of Reviews', angle: -90, position: 'insideLeft', fill: '#4b5563' }} 
-                      stroke="#4b5563"
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
-                        borderRadius: '8px', 
-                        border: '1px solid #e5e7eb',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                      }}
-                      formatter={(value: number) => [value, 'Reviews']}
-                      labelFormatter={(label) => `Rating: ${label}`}
-                    />
-                    <Bar 
-                      dataKey="count" 
-                      fill="url(#colorGradient)" 
-                      radius={[4, 4, 0, 0]}
-                    >
-                      <defs>
-                        <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
-                          <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.7}/>
-                        </linearGradient>
-                      </defs>
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+            <Card className="border-0 shadow-xl hover:shadow-2xl transition-shadow duration-300 bg-gradient-to-br from-white to-gray-50">
+              <CardHeader>
+                <CardTitle className="flex items-center text-2xl text-gray-800">
+                  <BarChart3 className="w-6 h-6 mr-3 text-blue-500" />
+                  Performance Trends
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={ratingData} margin={{ top: 20, right: 30, left: 20, bottom: 30 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="rating" 
+                        label={{ value: 'Rating', position: 'bottom', offset: 0, fill: '#4b5563' }} 
+                        stroke="#4b5563"
+                      />
+                      <YAxis 
+                        label={{ value: 'Number of Reviews', angle: -90, position: 'insideLeft', fill: '#4b5563' }} 
+                        stroke="#4b5563"
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'white', 
+                          borderRadius: '8px', 
+                          border: '1px solid #e5e7eb',
+                          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                        }}
+                        formatter={(value: number) => [value, 'Reviews']}
+                        labelFormatter={(label) => `Rating: ${label}`}
+                      />
+                      <Bar 
+                        dataKey="count" 
+                        fill="url(#colorGradient)" 
+                        radius={[4, 4, 0, 0]}
+                      >
+                        <defs>
+                          <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                            <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.7}/>
+                          </linearGradient>
+                        </defs>
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

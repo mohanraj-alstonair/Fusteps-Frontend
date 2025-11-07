@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='candidate',
             name='skills',
-            field=models.JSONField(blank=True, default=list),
+            field=models.JSONField(blank=True, null=True),
         ),
     ]

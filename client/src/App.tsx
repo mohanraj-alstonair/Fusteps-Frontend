@@ -105,13 +105,25 @@ function AppRouter() {
       <Route path="/dashboard/student" component={StudentDashboard} />
 
       {/* ✅ Other roles */}
-      <Route path="/dashboard/mentor*" component={MentorDashboard} />
+      <Route path="/dashboard/mentor/:rest*">
+        {(params) => <MentorDashboard />}
+      </Route>
+      <Route path="/dashboard/mentor" component={MentorDashboard} />
 
-      <Route path="/dashboard/alumni*" component={AlumniDashboard} />
+      <Route path="/dashboard/alumni/:rest*">
+        {(params) => <AlumniDashboard />}
+      </Route>
+      <Route path="/dashboard/alumni" component={AlumniDashboard} />
 
-      <Route path="/dashboard/employer*" component={EmployerDashboard} />
+      <Route path="/dashboard/employer/:rest*">
+        {(params) => <EmployerDashboard />}
+      </Route>
+      <Route path="/dashboard/employer" component={EmployerDashboard} />
 
-      <Route path="/dashboard/admin*" component={AdminDashboard} />
+      <Route path="/dashboard/admin/:rest*">
+        {(params) => <AdminDashboard />}
+      </Route>
+      <Route path="/dashboard/admin" component={AdminDashboard} />
 
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={NaukriStyleRegistration} />

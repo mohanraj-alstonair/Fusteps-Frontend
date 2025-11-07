@@ -28,7 +28,6 @@ import {
   BarChart3
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import MessageNotificationBadge from '../../components/MessageNotificationBadge';
 
 interface Mentor {
   id: string;
@@ -286,7 +285,16 @@ export default function StudentMentorsPage() {
     return () => clearInterval(pollInterval);
   }, []);
 
-
+  // Save feedbacks to localStorage as fallback
+  useEffect(() => {
+    try {
+      const studentId = getCurrentStudentId();
+      localStorage.setItem(`feedbacks_${studentId}`, JSON.stringify(feedbacks));
+    } catch (e) {
+      console.error('Error saving feedbacks to localStorage:', e);
+      toast({ title: 'Error', description: 'Failed to save feedbacks to storage', variant: 'destructive' });
+    }
+  }, [feedbacks]);
 
   const fetchConnectionStatuses = async (mentorList: Mentor[]) => {
     const studentId = parseInt(localStorage.getItem('studentId') || '6');
@@ -762,10 +770,9 @@ export default function StudentMentorsPage() {
                   <div className="flex space-x-2">
                     {mentor.requestStatus === 'accepted' ? (
                       <>
-                        <Button className="flex-1 bg-green-600 text-white hover:bg-green-700 relative" onClick={() => openMessageModal(mentor)}>
+                        <Button className="flex-1 bg-green-600 text-white hover:bg-green-700" onClick={() => openMessageModal(mentor)}>
                           <MessageSquare className="w-4 h-4 mr-2" />
                           Message
-                          <MessageNotificationBadge senderId={mentor.id} />
                         </Button>
                         <Button variant="outline" onClick={() => openScheduleModal(mentor)}>
                           <Calendar className="w-4 h-4 mr-2" />
@@ -783,7 +790,7 @@ export default function StudentMentorsPage() {
                       </Button>
                     ) : mentor.requestStatus === 'rejected' ? (
                       <Button
-                        className="flex-1 bg-fusteps-red text-white hover:bg-red-600"
+                        className="flex-1 bg-red-600 text-white hover:bg-red-700"
                         onClick={() => sendConnectionRequest(mentor.id)}
                       >
                         <UserPlus className="w-4 h-4 mr-2" />
@@ -791,7 +798,7 @@ export default function StudentMentorsPage() {
                       </Button>
                     ) : (
                       <Button
-                        className="flex-1 bg-fusteps-red text-white hover:bg-red-600"
+                        className="flex-1 bg-red-600 text-white hover:bg-red-700"
                         onClick={() => sendConnectionRequest(mentor.id)}
                       >
                         <UserPlus className="w-4 h-4 mr-2" />
@@ -810,7 +817,7 @@ export default function StudentMentorsPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-gray-900">My Sessions</h2>
             <Button
-              className="bg-fusteps-red hover:bg-red-600 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white"
               onClick={() => openScheduleModal()}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -909,7 +916,7 @@ export default function StudentMentorsPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-gray-900">Mentorship Requests</h2>
             <Button
-              className="bg-fusteps-red hover:bg-red-600 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white"
               onClick={() => openScheduleModal()}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -933,7 +940,7 @@ export default function StudentMentorsPage() {
                   <div className="flex space-x-2">
                     {request.status === 'accepted' && (
                       <Button
-                        className="bg-fusteps-red text-white hover:bg-red-600"
+                        className="bg-red-600 text-white hover:bg-red-700"
                         onClick={() => openScheduleModal({
                           id: request.mentor.toString(),
                           name: request.mentor_name,
@@ -1039,7 +1046,7 @@ export default function StudentMentorsPage() {
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    <Button className="flex-1 bg-fusteps-red text-white hover:bg-red-600" onClick={() => openMessageModal(mentor)}>
+                    <Button className="flex-1 bg-red-600 text-white hover:bg-red-700" onClick={() => openMessageModal(mentor)}>
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Message
                     </Button>
@@ -1221,13 +1228,6 @@ export default function StudentMentorsPage() {
                             }
                             return prev;
                           });
-                          
-                          // Trigger notification for mentor
-                          if ((window as any).showMessageNotification) {
-                            const studentName = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).name || 'Student' : 'Student';
-                            (window as any).showMessageNotification(studentName, studentId.toString());
-                          }
-                          
                           setMessageForm({ message: '' });
                         } catch (err) {
                           toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
@@ -1349,7 +1349,7 @@ export default function StudentMentorsPage() {
                 Cancel
               </Button>
               <Button
-                className="bg-fusteps-red text-white hover:bg-red-600"
+                className="bg-red-600 text-white hover:bg-red-700"
                 onClick={async () => {
                   if (scheduleForm.topic && scheduleForm.preferred_date_time && scheduleForm.mentor_id) {
                     try {
@@ -1491,7 +1491,7 @@ export default function StudentMentorsPage() {
                 Cancel
               </Button>
               <Button
-                className="bg-fusteps-red text-white hover:bg-red-600"
+                className="bg-red-600 text-white hover:bg-red-700"
                 onClick={handleFeedbackSubmit}
               >
                 Submit Feedback
