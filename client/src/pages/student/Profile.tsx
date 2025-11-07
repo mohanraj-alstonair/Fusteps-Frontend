@@ -33,50 +33,38 @@ import {
   Eye
 } from "lucide-react";
 import ProfileDebug from "@/components/ProfileDebug";
+import ResumeManager from "@/components/ResumeManager";
+import ResumeAnalytics from "@/components/ResumeAnalytics";
 
-// Resume Viewer Component
-function ResumeViewer({ userId }: { userId: string | null }) {
+// Resume Section Component
+function ResumeSection({ userId, isEditing, profile }: { userId: string | null; isEditing: boolean; profile: any }) {
   const [hasResume, setHasResume] = useState(false);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
-  useEffect(() => {
-    const checkResume = async () => {
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
+  const checkResume = async () => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const response = await fetch(`http://localhost:8000/api/profile/${userId}/resume/`, {
-          method: 'HEAD'
-        });
-        setHasResume(response.ok);
-      } catch (error) {
-        setHasResume(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkResume();
-  }, [userId]);
-
-  const handleViewResume = () => {
-    if (userId) {
-      window.open(`http://localhost:8000/api/profile/${userId}/resume/`, '_blank');
+    try {
+      const response = await fetch(`http://localhost:8000/api/profile/${userId}/resume/`, {
+        method: 'HEAD'
+      });
+      setHasResume(response.ok);
+    } catch (error) {
+      setHasResume(false);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDownloadResume = () => {
-    if (userId) {
-      const link = document.createElement('a');
-      link.href = `http://localhost:8000/api/profile/${userId}/resume/`;
-      link.download = 'resume.pdf';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+  useEffect(() => {
+    checkResume();
+  }, [userId]);
+
+  const handleResumeUpdate = () => {
+    checkResume();
   };
 
   if (loading) {
@@ -88,44 +76,23 @@ function ResumeViewer({ userId }: { userId: string | null }) {
     );
   }
 
-  if (!hasResume) {
+  if (!userId) {
     return (
       <div className="text-center p-8">
         <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground mb-4">No resume uploaded yet</p>
-        <p className="text-sm text-muted-foreground">Upload your resume during onboarding to view it here</p>
+        <p className="text-muted-foreground">Please log in to manage your resume</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <FileText className="w-5 h-5 text-indigo-600" />
-          <span className="font-medium">Resume.pdf</span>
-        </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={handleViewResume}>
-            <Eye className="w-4 h-4 mr-2" />
-            View
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleDownloadResume}>
-            <Download className="w-4 h-4 mr-2" />
-            Download
-          </Button>
-        </div>
-      </div>
-      
-      {/* PDF Preview */}
-      <div className="border rounded-lg overflow-hidden">
-        <iframe
-          src={`http://localhost:8000/api/profile/${userId}/resume/`}
-          className="w-full h-96"
-          title="Resume Preview"
-        />
-      </div>
-    </div>
+    <ResumeManager 
+      userId={userId} 
+      hasResume={hasResume} 
+      isEditing={isEditing} 
+      profileData={profile}
+      onResumeUpdate={handleResumeUpdate} 
+    />
   );
 }
 
@@ -423,7 +390,7 @@ export default function StudentProfilePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Profile Picture & Basic Info */}
+        {/* Left Column - Profile Picture & Analytics */}
         <div className="lg:col-span-1 space-y-6">
           {/* Profile Picture */}
           <Card className="bg-card rounded-2xl shadow-sm border">
@@ -466,41 +433,12 @@ export default function StudentProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
-          <Card className="bg-card rounded-2xl shadow-sm border">
-            <CardHeader className="pb-4">
-              <CardTitle>Quick Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <BookOpen className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium">Projects</span>
-                </div>
-                <Badge className="bg-blue-100 text-blue-600">12</Badge>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Award className="w-4 h-4 text-green-600" />
-                  </div>
-                  <span className="text-sm font-medium">Certifications</span>
-                </div>
-                <Badge className="bg-green-100 text-green-600">5</Badge>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <Target className="w-4 h-4 text-red-600" />
-                  </div>
-                  <span className="text-sm font-medium">Skills</span>
-                </div>
-                <Badge className="bg-red-100 text-red-600">{profile.skills.length}</Badge>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Resume Analytics */}
+          <ResumeAnalytics 
+            userId={getUserId() || ''} 
+            hasResume={true} 
+            profileData={profile} 
+          />
         </div>
 
         {/* Right Column - Detailed Information */}
@@ -828,7 +766,7 @@ export default function StudentProfilePage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResumeViewer userId={getUserId()} />
+              <ResumeSection userId={getUserId()} isEditing={isEditing} profile={profile} />
             </CardContent>
           </Card>
 

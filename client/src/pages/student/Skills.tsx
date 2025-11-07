@@ -156,6 +156,20 @@ export default function Skills() {
     }
   };
   
+  const createDefaultSkills = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/skills/api/skills/create_default/', {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (data.message) {
+        fetchAllData();
+      }
+    } catch (error) {
+      console.error('Error creating default skills:', error);
+    }
+  };
+
   const generateSkillToken = async (skillId: number) => {
     if (!userId) return;
     
@@ -176,7 +190,7 @@ export default function Skills() {
       const data = await response.json();
       if (data.success && data.skill_token) {
         console.log('Skill token generated:', data.skill_token.token_id);
-        fetchAllData(); // Refresh data
+        fetchAllData();
       }
     } catch (error) {
       console.error('Error generating skill token:', error);
@@ -234,9 +248,17 @@ export default function Skills() {
               Each skill you add now generates a unique digital token (e.g., SKL-PYT-A4B8C9D2) for instant verification by employers.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {skills.map((skill) => (
-              <Card key={skill.id} className="hover:shadow-lg transition-shadow border-2 border-blue-100 relative">
+          {skills.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-gray-500 mb-4">No skills available. Create default skills to get started.</p>
+                <Button onClick={createDefaultSkills}>Create Default Skills</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {skills.map((skill) => (
+                <Card key={skill.id} className="hover:shadow-lg transition-shadow border-2 border-blue-100 relative">
                 <div className="absolute top-2 right-2">
                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
                     <Brain className="w-3 h-3 mr-1" />
@@ -358,7 +380,8 @@ export default function Skills() {
                 </CardContent>
               </Card>
             ))}
-          </div>
+            </div>
+          )}
         </TabsContent>
         
         <TabsContent value="my-skills" className="space-y-4">

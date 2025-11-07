@@ -47,6 +47,7 @@ urlpatterns = [
     path('mentor/feedback/', views.get_mentor_feedback, name='get_mentor_feedback'),
     path('submit-mentor-feedback/', views.submit_mentor_feedback, name='submit_mentor_feedback'),
     path('profile/<int:user_id>/add-skill/', views.add_user_skill, name='add_user_skill'),
+    path('profile/<int:user_id>/resume/update/', views.update_resume, name='update_resume'),
     # Skill Management APIs
     path('skills/manage/<int:user_id>/', skill_views.manage_skills, name='manage_skills'),
     path('skills/all/', skill_views.get_all_skills, name='get_all_skills_new'),

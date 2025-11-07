@@ -26,6 +26,40 @@ class SkillViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(serializer.data)
         return Response({'error': 'Category parameter required'}, status=400)
     
+    @action(detail=False, methods=['post'])
+    def create_default(self, request):
+        default_skills = [
+            ('Python', 'PROGRAMMING', 'Python programming language', True, 85),
+            ('JavaScript', 'PROGRAMMING', 'JavaScript programming language', True, 90),
+            ('Java', 'PROGRAMMING', 'Java programming language', False, 75),
+            ('React', 'FRAMEWORK', 'React JavaScript library', True, 88),
+            ('Django', 'FRAMEWORK', 'Django web framework', False, 70),
+            ('SQL', 'DATABASE', 'Structured Query Language', True, 80),
+            ('MongoDB', 'DATABASE', 'NoSQL database', False, 65),
+            ('AWS', 'CLOUD', 'Amazon Web Services', True, 82),
+            ('Docker', 'DEVOPS', 'Containerization platform', True, 78),
+            ('Git', 'DEVOPS', 'Version control system', True, 95),
+        ]
+        
+        created_count = 0
+        for name, category, description, is_trending, demand_score in default_skills:
+            skill, created = Skill.objects.get_or_create(
+                name=name,
+                defaults={
+                    'category': category,
+                    'description': description,
+                    'is_trending': is_trending,
+                    'demand_score': demand_score
+                }
+            )
+            if created:
+                created_count += 1
+        
+        return Response({
+            'message': f'Created {created_count} new skills',
+            'total_skills': Skill.objects.count()
+        })
+    
     @action(detail=True, methods=['post'])
     def add_to_profile(self, request, pk=None):
         user_id = request.data.get('user_id')
@@ -59,7 +93,7 @@ class SkillViewSet(viewsets.ReadOnlyModelViewSet):
             
             # Handle certificate file upload
             if certificate_file:
-                # Save certificate file (you can customize the path)
+                # Save certificate file
                 import os
                 from django.conf import settings
                 
@@ -72,28 +106,66 @@ class SkillViewSet(viewsets.ReadOnlyModelViewSet):
                         destination.write(chunk)
                 
                 user_skill.certificate_path = file_path
-                is_certified = True  # Auto-set certified if file uploaded
+                is_certified = True
                 user_skill.is_certified = True
                 
-            # Set verification based on evidence
-            if certificate_file or is_certified:
-                user_skill.is_verified = True
-                verification_source = 'CERTIFICATE_UPLOAD'
-                confidence_score = 0.95
-            elif float(years_of_experience) >= 2.0:
-                user_skill.is_verified = True
-                verification_source = 'EXPERIENCE_BASED'
-                confidence_score = 0.80
-            else:
-                user_skill.is_verified = False  # Just claimed, not verified
-                verification_source = 'SELF_DECLARED'
-                confidence_score = 0.30
+                # Get certificate score if provided
+                certificate_score = request.data.get('certificate_score')
+                if certificate_score:
+                    try:
+                        score = float(certificate_score)
+                        if score >= 90:
+                            proficiency = 'EXPERT'
+                        elif score >= 85:
+                            proficiency = 'ADVANCED'
+                        elif score >= 80:
+                            proficiency = 'INTERMEDIATE'
+                        else:
+                            proficiency = 'BEGINNER'
+                        user_skill.proficiency = proficiency
+                    except ValueError:
+                        pass
+                
+            # Handle quiz score
+            quiz_score = request.data.get('quiz_score')
+            verification_source = 'SELF_DECLARED'
+            confidence_score = 0.30
+            
+            if quiz_score:
+                try:
+                    score = float(quiz_score)
+                    if score >= 80:
+                        user_skill.is_verified = True
+                        verification_source = 'ASSESSMENT_PASSED'
+                        confidence_score = min(0.95, score / 100)
+                    else:
+                        user_skill.is_verified = False
+                        verification_source = 'ASSESSMENT_FAILED'
+                        confidence_score = score / 100
+                except ValueError:
+                    pass
+            
+            # Set verification based on evidence (if not already set by quiz)
+            if not quiz_score:
+                if certificate_file or is_certified:
+                    user_skill.is_verified = True
+                    verification_source = 'CERTIFICATE_UPLOAD'
+                    confidence_score = 0.95
+                elif float(years_of_experience) >= 2.0:
+                    user_skill.is_verified = True
+                    verification_source = 'EXPERIENCE_BASED'
+                    confidence_score = 0.80
+                else:
+                    user_skill.is_verified = False
+                    verification_source = 'SELF_DECLARED'
+                    confidence_score = 0.30
             
             user_skill.save()
             
             # Generate skill token only if verified
+            skill_token = None
             if user_skill.is_verified:
-                SkillToken.objects.get_or_create(
+                skill_token, token_created = SkillToken.objects.get_or_create(
                     user=user,
                     skill=skill,
                     defaults={
@@ -104,20 +176,44 @@ class SkillViewSet(viewsets.ReadOnlyModelViewSet):
                             'years_experience': years_of_experience,
                             'certified': is_certified,
                             'certificate_uploaded': bool(certificate_file),
-                            'source': 'manual_addition'
+                            'quiz_score': quiz_score if quiz_score else None,
+                            'certificate_score': request.data.get('certificate_score') if certificate_file else None,
+                            'verification_method': verification_source,
+                            'source': 'skill_verification'
                         }
                     }
                 )
+                
+                # Update existing token if needed
+                if not token_created and quiz_score:
+                    skill_token.verification_source = verification_source
+                    skill_token.confidence_score = confidence_score
+                    skill_token.metadata.update({
+                        'quiz_score': quiz_score,
+                        'verification_method': verification_source
+                    })
+                    skill_token.save()
             
             serializer = UserSkillSerializer(user_skill)
             message = 'Skill verified and added to profile successfully' if user_skill.is_verified else 'Skill added to profile (verification pending)'
-            return Response({
+            
+            response_data = {
                 'success': True,
                 'message': message,
                 'verified': user_skill.is_verified,
                 'certificate_uploaded': bool(certificate_file),
                 'user_skill': serializer.data
-            })
+            }
+            
+            # Include skill token info if verified
+            if user_skill.is_verified and skill_token:
+                response_data['skill_token'] = {
+                    'token_id': skill_token.token_id,
+                    'verification_source': skill_token.verification_source,
+                    'confidence_score': skill_token.confidence_score
+                }
+            
+            return Response(response_data)
             
         except Candidate.DoesNotExist:
             return Response({'error': 'User not found'}, status=404)

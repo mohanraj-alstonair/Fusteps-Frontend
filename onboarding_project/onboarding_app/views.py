@@ -147,7 +147,8 @@ def get_user_profile(request, user_id):
                 'category': us.skill.category,
                 'proficiency': us.proficiency,
                 'years_of_experience': us.years_of_experience,
-                'is_certified': us.is_certified
+                'is_certified': us.is_certified,
+                'is_verified': us.is_verified
             } for us in skills_query]
         except Exception as e:
             logger.warning(f"Error fetching skills for user {user_id}: {str(e)}")
@@ -2129,6 +2130,40 @@ def get_resume(request, user_id):
         response = HttpResponse(candidate.resume_file, content_type='application/pdf')
         response['Content-Disposition'] = f'inline; filename="{candidate.resume_filename or "resume.pdf"}"'
         return response
+        
+    except Candidate.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def update_resume(request, user_id):
+    """Update user's resume file"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    
+    if 'file' not in request.FILES:
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
+    
+    file = request.FILES['file']
+    
+    if not file.name.lower().endswith('.pdf'):
+        return JsonResponse({'error': 'Only PDF files allowed'}, status=400)
+    
+    try:
+        candidate = Candidate.objects.get(id=user_id)
+        
+        # Read and store file content
+        file_content = file.read()
+        candidate.resume_file = file_content
+        candidate.resume_filename = file.name
+        candidate.save()
+        
+        return JsonResponse({
+            'message': 'Resume updated successfully',
+            'filename': file.name,
+            'size': len(file_content)
+        })
         
     except Candidate.DoesNotExist:
         return JsonResponse({'error': 'User not found'}, status=404)

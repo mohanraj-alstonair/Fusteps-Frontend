@@ -20,6 +20,7 @@ const menuItems = [
   { id: 'internships', label: 'Internships', icon: <BookOpen />, path: '/dashboard/student/internships' },
   { id: 'job-tools', label: 'Jobs & Career', icon: <Briefcase />, path: '/dashboard/student/job-tools' },
   { id: 'courses', label: '🚀 Courses & AI Skills', icon: <Brain />, path: '/dashboard/student/courses' },
+  { id: 'skills', label: '🎯 Skills Management', icon: <Award />, path: '/dashboard/student/skills' },
   { id: 'mentors', label: 'Mentors', icon: <Users />, path: '/dashboard/student/mentors' },
   { id: 'projects', label: 'Projects', icon: <FolderOpen />, path: '/dashboard/student/projects' },
   { id: 'library', label: 'Library', icon: <LibraryIcon />, path: '/dashboard/student/library' },
@@ -361,6 +362,16 @@ export default function StudentDashboard() {
           currentPage="profile"
         >
           <Profile />
+        </DashboardLayout>
+      </Route>
+      <Route path="/dashboard/student/skills">
+        <DashboardLayout
+          title="Skills Management"
+          subtitle="Student Dashboard"
+          menuItems={menuItems}
+          currentPage="skills"
+        >
+          <Skills />
         </DashboardLayout>
       </Route>
       <Route path="/dashboard/student/settings">
