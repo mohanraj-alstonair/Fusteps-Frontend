@@ -4,11 +4,24 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Upload, Github, ExternalLink, Code, Star, MessageCircle, Clock, CheckCircle, Grid3X3, List, Bell, Settings } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { 
+  Upload, 
+  Github, 
+  ExternalLink, 
+  Eye, 
+  Edit3, 
+  Clock, 
+  Grid3X3, 
+  List, 
+  Bell, 
+  Plus,
+  Star,
+  MessageCircle
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { submitProjectIdea, getProjectIdeas, ProjectIdeaPayload, updateProjectIdea, deleteProjectIdea } from "@/lib/api";
 
 export default function StudentProjectsPage() {
   const { toast } = useToast();
@@ -16,7 +29,11 @@ export default function StudentProjectsPage() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [showNewIdeaModal, setShowNewIdeaModal] = useState(false);
+  const [showViewDetailsModal, setShowViewDetailsModal] = useState(false);
+  const [showEditIdeaModal, setShowEditIdeaModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedIdea, setSelectedIdea] = useState<any>(null);
   const [feedbackText, setFeedbackText] = useState("");
   const [editForm, setEditForm] = useState({
     title: "",
@@ -30,6 +47,28 @@ export default function StudentProjectsPage() {
     projectApproved: true,
     deadlineReminders: true,
     mentorMessages: true
+  });
+
+  // New idea form state
+  const [newIdeaForm, setNewIdeaForm] = useState({
+    title: "",
+    description: "",
+    estimatedTime: "",
+    skills: "",
+    difficulty: "Intermediate",
+    category: "Web Development",
+    customCategory: ""
+  });
+
+  // Edit idea form state
+  const [editIdeaForm, setEditIdeaForm] = useState({
+    title: "",
+    description: "",
+    estimatedTime: "",
+    skills: "",
+    difficulty: "Intermediate",
+    category: "Web Development",
+    customCategory: ""
   });
 
   const openFeedbackModal = (project: any) => {
@@ -54,11 +93,30 @@ export default function StudentProjectsPage() {
     setShowNotificationsModal(true);
   };
 
+  const openViewDetails = (idea: any) => {
+    setSelectedIdea(idea);
+    setShowViewDetailsModal(true);
+  };
+
+  const openEditIdea = (idea: any) => {
+    setSelectedIdea(idea);
+    setEditIdeaForm({
+      title: idea.title,
+      description: idea.description,
+      estimatedTime: idea.estimated_time || '',
+      skills: idea.skills_involved || '',
+      difficulty: idea.difficulty_level || 'Intermediate',
+      category: idea.category || 'Web Development',
+      customCategory: idea.category !== "Other" ? "" : idea.customCategory || ""
+    });
+    setShowEditIdeaModal(true);
+  };
+
   const submitFeedback = () => {
     if (feedbackText.trim()) {
       toast({
-        title: "Feedback Submitted",
-        description: "Your feedback has been sent to the mentor!"
+        title: "Feedback Requested",
+        description: "Your feedback request has been sent to the mentor!"
       });
       setShowFeedbackModal(false);
       setFeedbackText("");
@@ -79,6 +137,162 @@ export default function StudentProjectsPage() {
       description: "Your notification preferences have been updated!"
     });
     setShowNotificationsModal(false);
+  };
+
+  const submitNewIdea = async () => {
+    if (newIdeaForm.title.trim() && newIdeaForm.description.trim()) {
+      const finalCategory = newIdeaForm.category === "Other" 
+        ? newIdeaForm.customCategory.trim() || "Uncategorized"
+        : newIdeaForm.category;
+
+      try {
+        const userId = localStorage.getItem('userId') || localStorage.getItem('studentId') || '4';
+        const userIdNum = parseInt(userId);
+
+        const payload: ProjectIdeaPayload = {
+          user_id: userIdNum,
+          project_title: newIdeaForm.title,
+          description: newIdeaForm.description,
+          estimated_time: newIdeaForm.estimatedTime,
+          difficulty_level: newIdeaForm.difficulty,
+          skills_involved: newIdeaForm.skills,
+          category: finalCategory
+        };
+        
+        console.log('Submitting payload:', payload);
+
+        const response = await submitProjectIdea(payload);
+        console.log('API Response:', response);
+        
+        toast({
+          title: "Idea Submitted!",
+          description: `Your idea "${newIdeaForm.title}" has been submitted under "${finalCategory}".`
+        });
+        
+        setShowNewIdeaModal(false);
+        setNewIdeaForm({
+          title: "", description: "", estimatedTime: "", skills: "",
+          difficulty: "Intermediate", category: "Web Development", customCategory: ""
+        });
+        
+        // Refresh project ideas
+        loadProjectIdeas();
+      } catch (error: any) {
+        console.error('Error submitting project idea:', error);
+        
+        let errorMessage = "Failed to submit project idea. Please try again.";
+        
+        if (error.response) {
+          console.error('Server error:', error.response.status, error.response.data);
+          const serverError = error.response.data?.error || error.response.data?.message || 'Unknown error';
+          errorMessage = `Server error (${error.response.status}): ${serverError}`;
+        } else if (error.request) {
+          console.error('Network error:', error.request);
+          errorMessage = "Network error: Could not connect to server. Make sure the backend is running on port 8000.";
+        } else {
+          console.error('Error:', error.message);
+          errorMessage = `Error: ${error.message}`;
+        }
+        
+        console.error('Full error object:', error);
+        
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleDeleteIdea = async (idea: any) => {
+    if (!confirm(`Are you sure you want to delete "${idea.title}"?`)) {
+      return;
+    }
+
+    try {
+      const userId = localStorage.getItem('userId') || localStorage.getItem('studentId') || '4';
+      const userIdNum = parseInt(userId);
+      await deleteProjectIdea(idea.id, userIdNum);
+      
+      toast({
+        title: "Idea Deleted!",
+        description: `Your idea "${idea.title}" has been deleted.`
+      });
+      
+      loadProjectIdeas();
+      
+    } catch (error: any) {
+      console.error('Error deleting project idea:', error);
+      
+      let errorMessage = "Failed to delete project idea. Please try again.";
+      
+      if (error.response) {
+        const serverError = error.response.data?.error || error.response.data?.message || 'Unknown error';
+        errorMessage = `Server error (${error.response.status}): ${serverError}`;
+      } else if (error.request) {
+        errorMessage = "Network error: Could not connect to server.";
+      } else {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const saveIdeaChanges = async () => {
+    const finalCategory = editIdeaForm.category === "Other" 
+      ? editIdeaForm.customCategory.trim() || "Uncategorized"
+      : editIdeaForm.category;
+
+    try {
+      const userId = localStorage.getItem('userId') || localStorage.getItem('studentId') || '4';
+      const userIdNum = parseInt(userId);
+
+      const updatePayload = {
+        user_id: userIdNum,
+        title: editIdeaForm.title,
+        description: editIdeaForm.description,
+        estimated_time: editIdeaForm.estimatedTime,
+        difficulty_level: editIdeaForm.difficulty,
+        skills_involved: editIdeaForm.skills,
+        category: finalCategory
+      };
+
+      const response = await updateProjectIdea(selectedIdea.id, updatePayload);
+      
+      toast({
+        title: "Idea Updated!",
+        description: `Your idea "${editIdeaForm.title}" has been updated under "${finalCategory}".`
+      });
+      
+      setShowEditIdeaModal(false);
+      loadProjectIdeas();
+      
+    } catch (error: any) {
+      console.error('Error updating project idea:', error);
+      
+      let errorMessage = "Failed to update project idea. Please try again.";
+      
+      if (error.response) {
+        const serverError = error.response.data?.error || error.response.data?.message || 'Unknown error';
+        errorMessage = `Server error (${error.response.status}): ${serverError}`;
+      } else if (error.request) {
+        errorMessage = "Network error: Could not connect to server.";
+      } else {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
   };
 
   const myProjects = [
@@ -112,32 +326,34 @@ export default function StudentProjectsPage() {
     }
   ];
 
-  const projectIdeas = [
-    {
-      title: "Personal Finance Tracker",
-      description: "Build a web app to track expenses and manage budgets",
-      difficulty: "Intermediate",
-      estimatedTime: "3-4 weeks",
-      skills: ["React", "Chart.js", "Local Storage"],
-      category: "Web Development"
-    },
-    {
-      title: "Task Management API",
-      description: "RESTful API for task management with user authentication",
-      difficulty: "Advanced",
-      estimatedTime: "4-5 weeks",
-      skills: ["Node.js", "Express", "JWT", "Database"],
-      category: "Backend Development"
-    },
-    {
-      title: "Machine Learning Classifier",
-      description: "Build and deploy a classification model for image recognition",
-      difficulty: "Advanced",
-      estimatedTime: "5-6 weeks",
-      skills: ["Python", "TensorFlow", "Data Processing"],
-      category: "AI/ML"
+  const [projectIdeas, setProjectIdeas] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadProjectIdeas = async () => {
+    try {
+      setIsLoading(true);
+      const userId = localStorage.getItem('userId') || localStorage.getItem('studentId') || '4';
+      const userIdNum = parseInt(userId);
+      
+      console.log('Loading project ideas for user ID:', userIdNum);
+      const response = await getProjectIdeas(userIdNum);
+      console.log('Project ideas response:', response);
+      
+      const freshData = Array.isArray(response.data) ? response.data : [];
+      setProjectIdeas(freshData);
+      
+      console.log('Set project ideas count:', freshData.length);
+    } catch (error) {
+      console.error('Error loading project ideas:', error);
+      setProjectIdeas([]);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    loadProjectIdeas();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -146,10 +362,6 @@ export default function StudentProjectsPage() {
           <h1 className="text-3xl font-bold text-gray-900">My Projects</h1>
           <p className="text-gray-600 mt-1">Showcase your skills and get feedback from mentors</p>
         </div>
-        <Button className="bg-fusteps-red hover:bg-red-600" onClick={() => toast({ title: 'Upload Project', description: 'Redirecting to upload form...' })}>
-          <Upload className="w-4 h-4 mr-2" />
-          Upload New Project
-        </Button>
       </div>
 
       <Tabs defaultValue="my-projects" className="w-full">
@@ -159,6 +371,7 @@ export default function StudentProjectsPage() {
           <TabsTrigger value="ideas">Project Ideas</TabsTrigger>
         </TabsList>
 
+        {/* === My Projects Tab === */}
         <TabsContent value="my-projects" className="space-y-6">
           <div className="grid gap-6">
             {myProjects.map((project) => (
@@ -212,33 +425,36 @@ export default function StudentProjectsPage() {
                     </div>
                   )}
 
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => window.open(project.githubUrl, '_blank')}>
-              <Github className="w-4 h-4 mr-2" />
-              View Code
-            </Button>
-            {project.liveUrl && (
-              <Button variant="outline" onClick={() => window.open(project.liveUrl, '_blank')}>
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Live Demo
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => openFeedbackModal(project)}>
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Feedback
-            </Button>
-            <Button variant="outline" onClick={() => openEditModal(project)}>Edit Project</Button>
-            <Button variant="outline" onClick={() => openNotificationsModal(project)}>
-              <Bell className="w-4 h-4 mr-2" />
-              Manage Notifications
-            </Button>
-          </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button variant="outline" onClick={() => window.open(project.githubUrl, '_blank')}>
+                      <Github className="w-4 h-4 mr-2" />
+                      View Code
+                    </Button>
+                    {project.liveUrl && (
+                      <Button variant="outline" onClick={() => window.open(project.liveUrl, '_blank')}>
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Live Demo
+                      </Button>
+                    )}
+                    <Button variant="outline" onClick={() => openFeedbackModal(project)}>
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Request Feedback
+                    </Button>
+                    <Button variant="outline" onClick={() => openEditModal(project)}>
+                      Edit Project
+                    </Button>
+                    <Button variant="outline" onClick={() => openNotificationsModal(project)}>
+                      <Bell className="w-4 h-4 mr-2" />
+                      Notifications
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         </TabsContent>
 
+        {/* === Upload Project Tab === */}
         <TabsContent value="upload" className="space-y-6">
           <Card>
             <CardHeader>
@@ -275,6 +491,7 @@ export default function StudentProjectsPage() {
                       <option>AI/ML</option>
                       <option>Data Science</option>
                       <option>Game Development</option>
+                      <option>Other</option>
                     </select>
                   </div>
                   <div>
@@ -304,98 +521,421 @@ export default function StudentProjectsPage() {
               </div>
               
               <div className="flex gap-2">
-                <Button className="bg-fusteps-red hover:bg-red-600" onClick={() => toast({ title: 'Project Uploaded', description: 'Your project has been submitted for review!' })}>
+                <Button 
+                  className="bg-fusteps-red hover:bg-red-600" 
+                  onClick={() => toast({ 
+                    title: 'Project Uploaded', 
+                    description: 'Your project has been submitted for review!' 
+                  })}
+                >
                   <Upload className="w-4 h-4 mr-2" />
                   Upload Project
                 </Button>
-                <Button variant="outline" onClick={() => toast({ title: 'Draft Saved', description: 'Your project has been saved as draft' })}>Save as Draft</Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => toast({ 
+                    title: 'Draft Saved', 
+                    description: 'Your project has been saved as draft' 
+                  })}
+                >
+                  Save as Draft
+                </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* === Project Ideas Tab === */}
         <TabsContent value="ideas" className="space-y-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-semibold">Project Ideas</h2>
-            <div className="flex gap-2">
-              <Button
-                variant={viewMode === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-              >
-                <List className="w-4 h-4 mr-2" />
-                List
-              </Button>
-              <Button
-                variant={viewMode === "grid" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-              >
-                <Grid3X3 className="w-4 h-4 mr-2" />
-                Grid
-              </Button>
-            </div>
+            <Button
+              className="bg-fusteps-red hover:bg-red-600"
+              size="sm"
+              onClick={() => setShowNewIdeaModal(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Idea
+            </Button>
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <Button
+              variant={viewMode === "list" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="w-4 h-4 mr-2" />
+              List
+            </Button>
+            <Button
+              variant={viewMode === "grid" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+            >
+              <Grid3X3 className="w-4 h-4 mr-2" />
+              Grid
+            </Button>
           </div>
           
-          <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "grid gap-6"}>
-            {projectIdeas.map((idea, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CardTitle className="text-xl">{idea.title}</CardTitle>
-                        <Badge variant="outline">{idea.category}</Badge>
-                        <Badge 
-                          variant="secondary"
-                          className={`${
-                            idea.difficulty === 'Beginner' ? 'bg-green-100 text-green-800' :
-                            idea.difficulty === 'Intermediate' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {idea.difficulty}
-                        </Badge>
-                      </div>
-                      <CardDescription className="mb-4">
-                        {idea.description}
-                      </CardDescription>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {idea.estimatedTime}
+          {isLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="text-gray-500">Loading project ideas...</div>
+            </div>
+          ) : projectIdeas.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">No project ideas submitted yet.</p>
+              <Button
+                className="bg-fusteps-red hover:bg-red-600"
+                onClick={() => setShowNewIdeaModal(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Submit Your First Idea
+              </Button>
+            </div>
+          ) : (
+            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "grid gap-6"}>
+              {projectIdeas.map((idea, index) => (
+                <Card key={index} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CardTitle className="text-xl">{idea.title}</CardTitle>
+                          <Badge variant="outline">{idea.category}</Badge>
+                          <Badge 
+                            variant="secondary"
+                            className={`${
+                              idea.difficulty_level === 'Beginner' ? 'bg-green-100 text-green-800' :
+                              idea.difficulty_level === 'Intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {idea.difficulty_level}
+                          </Badge>
+                        </div>
+                        <CardDescription className="mb-4">
+                          {idea.description}
+                        </CardDescription>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {idea.estimated_time}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium mb-2">Skills you'll learn:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {idea.skills.map((skill) => (
-                        <Badge key={skill} variant="secondary" className="bg-blue-50 text-blue-700">
-                          {skill}
-                        </Badge>
-                      ))}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <p className="text-sm font-medium mb-2">Skills you'll learn:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(idea.skills_involved ? idea.skills_involved.split(',') : []).map((skill: string, idx: number) => (
+                          <Badge key={idx} variant="secondary" className="bg-blue-50 text-blue-700">
+                            {skill.trim()}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex gap-2">
-                    <Button className="bg-fusteps-red hover:bg-red-600" onClick={() => toast({ title: 'Project Started', description: `Starting ${idea.title} project...` })}>
-                      <Code className="w-4 h-4 mr-2" />
-                      Start Building
-                    </Button>
-                    <Button variant="outline" onClick={() => toast({ title: 'Project Guide', description: `Opening detailed guide for ${idea.title}` })}>Get Detailed Guide</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        className="bg-fusteps-red hover:bg-red-600" 
+                        onClick={() => openViewDetails(idea)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Details
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => openEditIdea(idea)}
+                      >
+                        <Edit3 className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleDeleteIdea(idea)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
-      {/* Feedback Modal */}
+      {/* === New Idea Modal === */}
+      <Dialog open={showNewIdeaModal} onOpenChange={setShowNewIdeaModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Submit New Project Idea
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Project Title *</label>
+              <Input
+                placeholder="e.g., Personal Finance Tracker"
+                value={newIdeaForm.title}
+                onChange={(e) => setNewIdeaForm(prev => ({ ...prev, title: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Description *</label>
+              <Textarea
+                placeholder="Describe the project idea and its purpose"
+                rows={3}
+                value={newIdeaForm.description}
+                onChange={(e) => setNewIdeaForm(prev => ({ ...prev, description: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Estimated Time</label>
+                <Input
+                  placeholder="e.g., 3-4 weeks"
+                  value={newIdeaForm.estimatedTime}
+                  onChange={(e) => setNewIdeaForm(prev => ({ ...prev, estimatedTime: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Difficulty Level</label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded-md mt-1 text-sm"
+                  value={newIdeaForm.difficulty}
+                  onChange={(e) => setNewIdeaForm(prev => ({ ...prev, difficulty: e.target.value }))}
+                >
+                  <option>Beginner</option>
+                  <option>Intermediate</option>
+                  <option>Advanced</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Skills Involved</label>
+              <Input
+                placeholder="React, Node.js, MongoDB..."
+                value={newIdeaForm.skills}
+                onChange={(e) => setNewIdeaForm(prev => ({ ...prev, skills: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Category</label>
+              <select
+                className="w-full p-2 border border-gray-300 rounded-md mt-1 text-sm"
+                value={newIdeaForm.category}
+                onChange={(e) => setNewIdeaForm(prev => ({ 
+                  ...prev, 
+                  category: e.target.value,
+                  customCategory: e.target.value !== "Other" ? "" : prev.customCategory
+                }))}
+              >
+                <option>Web Development</option>
+                <option>Mobile Development</option>
+                <option>Backend Development</option>
+                <option>AI/ML</option>
+                <option>Data Science</option>
+                <option>Game Development</option>
+                <option>Other</option>
+              </select>
+            </div>
+
+            {newIdeaForm.category === "Other" && (
+              <div>
+                <label className="text-sm font-medium">Custom Category *</label>
+                <Input
+                  placeholder="e.g., Blockchain, IoT, AR/VR..."
+                  value={newIdeaForm.customCategory}
+                  onChange={(e) => setNewIdeaForm(prev => ({ ...prev, customCategory: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewIdeaModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-fusteps-red hover:bg-red-600"
+              onClick={submitNewIdea}
+              disabled={
+                !newIdeaForm.title.trim() || 
+                !newIdeaForm.description.trim() ||
+                (newIdeaForm.category === "Other" && !newIdeaForm.customCategory.trim())
+              }
+            >
+              Submit Idea
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === View Details Modal === */}
+      <Dialog open={showViewDetailsModal} onOpenChange={setShowViewDetailsModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedIdea?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Description</p>
+              <p className="text-sm">{selectedIdea?.description}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="font-medium text-gray-600">Estimated Time</p>
+                <p>{selectedIdea?.estimated_time}</p>
+              </div>
+              <div>
+                <p className="font-medium text-gray-600">Difficulty</p>
+                <p>{selectedIdea?.difficulty_level}</p>
+              </div>
+            </div>
+            <div>
+              <p className="font-medium text-gray-600">Skills</p>
+              <p>{selectedIdea?.skills_involved || 'No skills specified'}</p>
+            </div>
+            <div>
+              <p className="font-medium text-gray-600">Category</p>
+              <p>{selectedIdea?.category}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowViewDetailsModal(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Edit Idea Modal === */}
+      <Dialog open={showEditIdeaModal} onOpenChange={setShowEditIdeaModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Project Idea</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Project Title *</label>
+              <Input
+                value={editIdeaForm.title}
+                onChange={(e) => setEditIdeaForm(prev => ({ ...prev, title: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Description *</label>
+              <Textarea
+                rows={3}
+                value={editIdeaForm.description}
+                onChange={(e) => setEditIdeaForm(prev => ({ ...prev, description: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Estimated Time</label>
+                <Input
+                  value={editIdeaForm.estimatedTime}
+                  onChange={(e) => setEditIdeaForm(prev => ({ ...prev, estimatedTime: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Difficulty Level</label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded-md mt-1 text-sm"
+                  value={editIdeaForm.difficulty}
+                  onChange={(e) => setEditIdeaForm(prev => ({ ...prev, difficulty: e.target.value }))}
+                >
+                  <option>Beginner</option>
+                  <option>Intermediate</option>
+                  <option>Advanced</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Skills Involved</label>
+              <Input
+                value={editIdeaForm.skills}
+                onChange={(e) => setEditIdeaForm(prev => ({ ...prev, skills: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Category</label>
+              <select
+                className="w-full p-2 border border-gray-300 rounded-md mt-1 text-sm"
+                value={editIdeaForm.category}
+                onChange={(e) => setEditIdeaForm(prev => ({ 
+                  ...prev, 
+                  category: e.target.value,
+                  customCategory: e.target.value !== "Other" ? "" : prev.customCategory
+                }))}
+              >
+                <option>Web Development</option>
+                <option>Mobile Development</option>
+                <option>Backend Development</option>
+                <option>AI/ML</option>
+                <option>Data Science</option>
+                <option>Game Development</option>
+                <option>Other</option>
+              </select>
+            </div>
+
+            {editIdeaForm.category === "Other" && (
+              <div>
+                <label className="text-sm font-medium">Custom Category *</label>
+                <Input
+                  value={editIdeaForm.customCategory}
+                  onChange={(e) => setEditIdeaForm(prev => ({ ...prev, customCategory: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditIdeaModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-fusteps-red hover:bg-red-600"
+              onClick={saveIdeaChanges}
+              disabled={
+                !editIdeaForm.title.trim() || 
+                !editIdeaForm.description.trim() ||
+                (editIdeaForm.category === "Other" && !editIdeaForm.customCategory.trim())
+              }
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Feedback Modal === */}
       <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -428,7 +968,7 @@ export default function StudentProjectsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Project Modal */}
+      {/* === Edit Project Modal === */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -493,7 +1033,7 @@ export default function StudentProjectsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Notifications Modal */}
+      {/* === Notifications Modal === */}
       <Dialog open={showNotificationsModal} onOpenChange={setShowNotificationsModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>

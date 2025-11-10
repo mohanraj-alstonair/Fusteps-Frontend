@@ -48,6 +48,11 @@ urlpatterns = [
     path('submit-mentor-feedback/', views.submit_mentor_feedback, name='submit_mentor_feedback'),
     path('profile/<int:user_id>/add-skill/', views.add_user_skill, name='add_user_skill'),
     path('profile/<int:user_id>/resume/update/', views.update_resume, name='update_resume'),
+    # Project Ideas APIs
+    path('project-ideas/submit/', views.submit_project_idea, name='submit_project_idea'),
+    path('project-ideas/', views.get_project_ideas, name='get_project_ideas'),
+    path('project-ideas/<int:project_id>/delete/', views.delete_project_idea, name='delete_project_idea'),
+    path('project-ideas/<int:project_id>/update/', views.update_project_idea, name='update_project_idea'),
     # Skill Management APIs
     path('skills/manage/<int:user_id>/', skill_views.manage_skills, name='manage_skills'),
     path('skills/all/', skill_views.get_all_skills, name='get_all_skills_new'),

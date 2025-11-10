@@ -81,6 +81,8 @@ class Candidate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     
+
+    
     # Legacy fields for backward compatibility
     phone = models.CharField(max_length=20, null=True, blank=True)
     university = models.CharField(max_length=255, null=True, blank=True)
@@ -161,6 +163,41 @@ class ChatMessage(models.Model):
     class Meta:
         db_table = 'onboarding_app_chatmessage'
         ordering = ['timestamp']
+
+class ProjectIdea(models.Model):
+    DIFFICULTY_CHOICES = [
+        ('Beginner', 'Beginner'),
+        ('Intermediate', 'Intermediate'),
+        ('Advanced', 'Advanced'),
+    ]
+    
+    CATEGORY_CHOICES = [
+        ('Web Development', 'Web Development'),
+        ('Mobile Development', 'Mobile Development'),
+        ('Backend Development', 'Backend Development'),
+        ('AI/ML', 'AI/ML'),
+        ('Data Science', 'Data Science'),
+        ('Game Development', 'Game Development'),
+        ('Other', 'Other'),
+    ]
+
+    id = models.AutoField(primary_key=True)
+    student = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='project_ideas', limit_choices_to={'role': 'student'})
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    estimated_time = models.CharField(max_length=100, blank=True)
+    difficulty_level = models.CharField(max_length=50, choices=DIFFICULTY_CHOICES, default='Intermediate')
+    skills_involved = models.TextField(blank=True)
+    category = models.CharField(max_length=100, choices=CATEGORY_CHOICES, default='Web Development')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.student.name} - {self.title}"
+
+    class Meta:
+        db_table = 'project_ideas'
+        ordering = ['-created_at']
 
 class BookedSession(models.Model):
     STATUS_CHOICES = [

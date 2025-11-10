@@ -335,4 +335,27 @@ export const analyzeSkillGaps = (userId: number, targetRole?: string) =>
 export const verifySkillToken = (tokenId: string) =>
   api.get(`/api/skills/api/skill-tokens/${tokenId}/verify_token/`);
 
+// Project Ideas APIs
+export type ProjectIdeaPayload = {
+  user_id: number;
+  project_title: string;
+  description: string;
+  estimated_time?: string;
+  difficulty_level?: string;
+  skills_involved?: string;
+  category?: string;
+};
+
+export const submitProjectIdea = (payload: ProjectIdeaPayload) =>
+  api.post('/api/project-ideas/submit/', payload);
+
+export const getProjectIdeas = (userId: number) =>
+  api.get(`/api/project-ideas/?user_id=${userId}&_t=${Date.now()}`);
+
+export const updateProjectIdea = (projectId: number, payload: Partial<ProjectIdeaPayload>) =>
+  api.put(`/api/project-ideas/${projectId}/update/`, payload);
+
+export const deleteProjectIdea = (projectId: number, userId: number) =>
+  api.delete(`/api/project-ideas/${projectId}/delete/`, { data: { user_id: userId } });
+
 

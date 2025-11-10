@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 import pdfplumber
 import re
-from .models import Candidate, ChatMessage, BookedSession
+from .models import Candidate, ChatMessage, BookedSession, ProjectIdea
 from skills_management.models import Skill, UserSkill
 from .serializers import ChatMessageSerializer
 from rest_framework.decorators import api_view, permission_classes
@@ -2168,6 +2168,189 @@ def update_resume(request, user_id):
     except Candidate.DoesNotExist:
         return JsonResponse({'error': 'User not found'}, status=404)
     except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def submit_project_idea(request):
+    """Submit a new project idea for a specific student"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        user_id = data.get('user_id')
+        project_title = data.get('project_title')
+        description = data.get('description')
+
+        if not all([user_id, project_title, description]):
+            return JsonResponse({'error': 'user_id, project_title and description are required'}, status=400)
+
+        # Validate student exists
+        try:
+            student = Candidate.objects.get(id=int(user_id), role='student')
+        except (Candidate.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Student not found'}, status=404)
+
+        # Create project idea in project_ideas table
+        project_idea = ProjectIdea.objects.create(
+            student=student,
+            title=project_title,
+            description=description,
+            estimated_time=data.get('estimated_time', ''),
+            difficulty_level=data.get('difficulty_level', 'Intermediate'),
+            skills_involved=data.get('skills_involved', ''),
+            category=data.get('category', 'Web Development')
+        )
+
+        return JsonResponse({
+            'message': 'Project idea submitted successfully',
+            'project_id': project_idea.id,
+            'project_title': project_title,
+            'student_id': student.id
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_project_ideas(request):
+    """Get project ideas for a specific student only"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'GET required'}, status=405)
+
+    try:
+        user_id = request.GET.get('user_id')
+        if not user_id:
+            return JsonResponse({'error': 'user_id parameter required'}, status=400)
+
+        # Validate student exists
+        try:
+            student = Candidate.objects.get(id=int(user_id), role='student')
+        except (Candidate.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Student not found'}, status=404)
+
+        # Get project ideas from project_ideas table
+        project_ideas = ProjectIdea.objects.filter(student=student).order_by('-created_at')
+        
+        ideas_list = []
+        for idea in project_ideas:
+            ideas_list.append({
+                'id': idea.id,
+                'title': idea.title,
+                'description': idea.description,
+                'estimated_time': idea.estimated_time,
+                'difficulty_level': idea.difficulty_level,
+                'skills_involved': idea.skills_involved,
+                'category': idea.category,
+                'created_at': idea.created_at.isoformat()
+            })
+
+        return JsonResponse(ideas_list, safe=False)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def delete_project_idea(request, project_id):
+    """Delete a project idea"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'DELETE required'}, status=405)
+
+    try:
+        # Get user_id from request body or query params
+        user_id = None
+        if request.content_type == 'application/json':
+            data = json.loads(request.body.decode('utf-8'))
+            user_id = data.get('user_id')
+        else:
+            user_id = request.GET.get('user_id')
+
+        if not user_id:
+            return JsonResponse({'error': 'user_id required'}, status=400)
+
+        try:
+            user_id_int = int(user_id)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid user_id format'}, status=400)
+
+        try:
+            student = Candidate.objects.get(id=user_id_int, role='student')
+        except Candidate.DoesNotExist:
+            return JsonResponse({'error': 'Student not found'}, status=404)
+
+        # Get project idea from project_ideas table
+        try:
+            project_idea = ProjectIdea.objects.get(id=project_id, student=student)
+        except ProjectIdea.DoesNotExist:
+            return JsonResponse({'error': 'Project idea not found'}, status=404)
+
+        project_title = project_idea.title
+        project_idea.delete()
+
+        logger.info(f"Project idea '{project_title}' deleted by student {student.name} (ID: {student.id})")
+
+        return JsonResponse({
+            'message': 'Project idea deleted successfully',
+            'project_title': project_title
+        })
+
+    except Exception as e:
+        logger.error(f"Error deleting project idea: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def update_project_idea(request, project_id):
+    """Update an existing project idea"""
+    if request.method != 'PUT':
+        return JsonResponse({'error': 'PUT required'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return JsonResponse({'error': 'user_id required'}, status=400)
+
+        try:
+            user_id_int = int(user_id)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid user_id format'}, status=400)
+
+        try:
+            student = Candidate.objects.get(id=user_id_int, role='student')
+        except Candidate.DoesNotExist:
+            return JsonResponse({'error': 'Student not found'}, status=404)
+
+        # Get project idea from project_ideas table
+        try:
+            project_idea = ProjectIdea.objects.get(id=project_id, student=student)
+        except ProjectIdea.DoesNotExist:
+            return JsonResponse({'error': 'Project idea not found'}, status=404)
+
+        # Update project idea fields
+        project_idea.title = data.get('title', project_idea.title)
+        project_idea.description = data.get('description', project_idea.description)
+        project_idea.estimated_time = data.get('estimated_time', project_idea.estimated_time)
+        project_idea.difficulty_level = data.get('difficulty_level', project_idea.difficulty_level)
+        project_idea.skills_involved = data.get('skills_involved', project_idea.skills_involved)
+        project_idea.category = data.get('category', project_idea.category)
+        project_idea.save()
+
+        return JsonResponse({
+            'message': 'Project idea updated successfully',
+            'project_idea': {
+                'id': project_idea.id,
+                'title': project_idea.title,
+                'description': project_idea.description,
+                'estimated_time': project_idea.estimated_time,
+                'difficulty_level': project_idea.difficulty_level,
+                'skills_involved': project_idea.skills_involved,
+                'category': project_idea.category
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating project idea: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 @csrf_exempt
