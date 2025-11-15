@@ -35,7 +35,7 @@ export default function ProfileDebug() {
       } catch (error) {
         console.error('Debug - API error:', error);
         setDebugInfo({
-          error: error.message,
+          error: error instanceof Error ? error.message : 'Unknown error',
           status: 'error'
         });
       } finally {

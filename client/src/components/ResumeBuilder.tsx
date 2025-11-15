@@ -10,12 +10,10 @@ import {
   Download, 
   Plus, 
   X, 
-  Save,
   Eye
 } from 'lucide-react';
 
 interface ResumeBuilderProps {
-  userId: string;
   profileData: any;
   onResumeGenerated: () => void;
 }
@@ -48,7 +46,7 @@ interface ResumeData {
   }>;
 }
 
-export default function ResumeBuilder({ userId, profileData, onResumeGenerated }: ResumeBuilderProps) {
+export default function ResumeBuilder({ profileData, onResumeGenerated }: ResumeBuilderProps) {
   const [resumeData, setResumeData] = useState<ResumeData>({
     personalInfo: {
       name: `${profileData?.personal?.firstName || ''} ${profileData?.personal?.lastName || ''}`.trim(),

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { 
   FileText, 
-  Upload, 
+ 
   Eye, 
   Download, 
   RefreshCw, 
@@ -19,6 +19,7 @@ interface ResumeManagerProps {
   userId: string;
   hasResume: boolean;
   isEditing: boolean;
+  profileData?: any;
   onResumeUpdate: () => void;
 }
 
@@ -33,7 +34,7 @@ interface ParsedData {
   skills?: string[];
 }
 
-export default function ResumeManager({ userId, hasResume, isEditing, onResumeUpdate }: ResumeManagerProps) {
+export default function ResumeManager({ userId, hasResume, isEditing, profileData: _profileData, onResumeUpdate }: ResumeManagerProps) {
   const [parsing, setParsing] = useState(false);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [showParsedData, setShowParsedData] = useState(false);
@@ -182,14 +183,7 @@ export default function ResumeManager({ userId, hasResume, isEditing, onResumeUp
             Parse
           </Button>
           {isEditing && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowBuilder(true)}
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Builder
-            </Button>
+            <ResumeUpload userId={userId} onUploadSuccess={onResumeUpdate} />
           )}
         </div>
       </div>

@@ -629,10 +629,9 @@ export default function StudentMentorsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="browse">Browse</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
-          <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="favorites">Favorites</TabsTrigger>
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
         </TabsList>
@@ -911,94 +910,7 @@ export default function StudentMentorsPage() {
           )}
         </TabsContent>
 
-        {/* REQUESTS TAB */}
-        <TabsContent value="requests" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold text-gray-900">Mentorship Requests</h2>
-            <Button
-              className="bg-red-600 hover:bg-red-700 text-white"
-              onClick={() => openScheduleModal()}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Request
-            </Button>
-          </div>
-          <div className="space-y-4">
-            {prevConnections.map((request) => (
-              <Card key={request.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg mb-1">Request to {request.mentor_name}</h3>
-                      <Badge variant="outline" className={getRequestStatusColor(request.status)}>
-                        {request.status}
-                      </Badge>
-                    </div>
-                    <span className="text-sm text-gray-500">Sent {new Date(request.sent_date).toLocaleDateString()}</span>
-                  </div>
-                  <p className="text-gray-600 mb-4">{request.message}</p>
-                  <div className="flex space-x-2">
-                    {request.status === 'accepted' && (
-                      <Button
-                        className="bg-red-600 text-white hover:bg-red-700"
-                        onClick={() => openScheduleModal({
-                          id: request.mentor.toString(),
-                          name: request.mentor_name,
-                          avatar: 'https://placehold.co/80x80',
-                          title: '',
-                          company: '',
-                          location: '',
-                          expertise: [],
-                          rating: 0,
-                          reviewCount: 0,
-                          availability: 'available',
-                          bio: '',
-                          experience: 0,
-                          education: '',
-                          languages: [],
-                          isConnected: true,
-                          isFavorite: false
-                        } as Mentor)}
-                      >
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Schedule Session
-                      </Button>
-                    )}
-                    {request.status === 'pending' && (
-                      <Button variant="ghost" className="text-gray-500 hover:text-red-600">
-                        Cancel Request
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      className="text-gray-500 hover:text-gray-900"
-                      onClick={() => openMessageModal({
-                        id: request.mentor.toString(),
-                        name: request.mentor_name,
-                        avatar: 'https://placehold.co/80x80',
-                        title: '',
-                        company: '',
-                        location: '',
-                        expertise: [],
-                        rating: 0,
-                        reviewCount: 0,
-                        availability: 'available',
-                        bio: '',
-                        experience: 0,
-                        education: '',
-                        languages: [],
-                        isConnected: request.status === 'accepted',
-                        isFavorite: false
-                      } as Mentor)}
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+
 
         {/* FAVORITES TAB */}
         <TabsContent value="favorites" className="space-y-6">

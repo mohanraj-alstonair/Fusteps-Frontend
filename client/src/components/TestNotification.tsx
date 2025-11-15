@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useSimpleNotifications } from '../hooks/use-simple-notifications';
 
 export default function TestNotification() {
@@ -20,8 +20,8 @@ export default function TestNotification() {
     window.dispatchEvent(new CustomEvent('test-notification', { detail: testNotification }));
     
     // Also try direct notification
-    if (window.showNotification) {
-      window.showNotification(testNotification);
+    if ((window as any).showNotification) {
+      (window as any).showNotification(testNotification);
     }
   };
 

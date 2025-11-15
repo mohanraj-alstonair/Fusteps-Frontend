@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Shield, Award, TrendingUp, BookOpen, QrCode, Brain, Zap, Star, CheckCircle, AlertTriangle, ExternalLink, Clock, Users, Target, Upload, Play, AlertCircle } from 'lucide-react';
+import { Award, TrendingUp, BookOpen, Brain, CheckCircle, Target, Upload, Play, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { getUserSkillTokens, getUserSkillGaps, getUserSkillRecommendations, analyzeSkillGaps } from '@/lib/api';
+import { getUserSkillGaps, getUserSkillRecommendations, analyzeSkillGaps } from '@/lib/api';
 
 interface SkillToken {
   id: number;
@@ -18,6 +16,7 @@ interface SkillToken {
   verification_source: string;
   created_at: string;
   status?: string;
+  is_verified?: boolean;
 }
 
 interface SkillGap {
@@ -42,10 +41,18 @@ export default function SimpleSkillDashboard() {
   const [skillGaps, setSkillGaps] = useState<SkillGap[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [verifyDialog, setVerifyDialog] = useState({ open: false, skill: null });
-  const [quizDialog, setQuizDialog] = useState({ open: false, skill: null });
-  const [certificateFile, setCertificateFile] = useState(null);
-  const [quizState, setQuizState] = useState({ questions: [], currentQuestion: 0, answers: [], score: 0, completed: false, showAnswer: false, selectedAnswer: null });
+  const [verifyDialog, setVerifyDialog] = useState<{ open: boolean; skill: { name: string; category?: string; id?: number } | null }>({ open: false, skill: null });
+  const [quizDialog, setQuizDialog] = useState<{ open: boolean; skill: { name: string; category?: string; id?: number } | null }>({ open: false, skill: null });
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [quizState, setQuizState] = useState<{
+    questions: Array<{ question: string; options: string[]; correct: number }>;
+    currentQuestion: number;
+    answers: (number | null)[];
+    score: number;
+    completed: boolean;
+    showAnswer: boolean;
+    selectedAnswer: number | null;
+  }>({ questions: [], currentQuestion: 0, answers: [], score: 0, completed: false, showAnswer: false, selectedAnswer: null });
   const [certificateProcessing, setCertificateProcessing] = useState(false);
 
   const fetchSkillData = async () => {
@@ -65,7 +72,7 @@ export default function SimpleSkillDashboard() {
         const profileData = await profileRes.json();
         const skills = profileData.skills || [];
         
-        const mockTokens = skills.map((skill, index) => ({
+        const mockTokens = skills.map((skill: any) => ({
           id: skill.id,
           skill: { name: skill.name, category: skill.category },
           token_id: `SKL-${skill.name.substring(0,3).toUpperCase()}-${Math.random().toString(36).substring(2,8).toUpperCase()}`,
@@ -123,55 +130,48 @@ export default function SimpleSkillDashboard() {
     fetchSkillData();
   }, []);
 
-  const getVerificationIcon = (method: string) => {
-    switch (method) {
-      case 'AI_VERIFIED': return <Shield className="w-5 h-5 text-white" />;
-      case 'CERTIFICATE': return <Award className="w-5 h-5 text-white" />;
-      case 'COURSE_COMPLETION': return <BookOpen className="w-5 h-5 text-white" />;
-      case 'ASSESSMENT_PASSED': return <CheckCircle className="w-5 h-5 text-white" />;
-      default: return <Shield className="w-5 h-5 text-white" />;
-    }
-  };
 
-  const handleCertificateUpload = (file) => {
+
+  const handleCertificateUpload = (file: File | undefined) => {
     if (file) {
       setCertificateFile(file);
     }
   };
 
-  const parseCertificate = async (file) => {
+  const parseCertificate = async (file: File): Promise<{ score: number; proficiency: string }> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const text = e.target.result;
-        
+        const result = e.target?.result;
+        const text = (typeof result === 'string' ? result : '').toLowerCase();
+
         // Simple certificate parsing logic
         let score = 70; // Default score
         let proficiency = 'INTERMEDIATE';
-        
+
         // Look for grade/score indicators
-        if (text.includes('A+') || text.includes('95') || text.includes('Excellent')) {
+        if (text.includes('a+') || text.includes('95') || text.includes('excellent')) {
           score = 95;
           proficiency = 'EXPERT';
-        } else if (text.includes('A') || text.includes('90') || text.includes('Outstanding')) {
+        } else if (text.includes('a') || text.includes('90') || text.includes('outstanding')) {
           score = 90;
           proficiency = 'ADVANCED';
-        } else if (text.includes('B+') || text.includes('85') || text.includes('Good')) {
+        } else if (text.includes('b+') || text.includes('85') || text.includes('good')) {
           score = 85;
           proficiency = 'ADVANCED';
-        } else if (text.includes('B') || text.includes('80') || text.includes('Satisfactory')) {
+        } else if (text.includes('b') || text.includes('80') || text.includes('satisfactory')) {
           score = 80;
           proficiency = 'INTERMEDIATE';
         }
-        
+
         // Look for completion indicators
         if (text.includes('completed') || text.includes('certified') || text.includes('passed')) {
           score = Math.max(score, 80);
         }
-        
+
         resolve({ score, proficiency });
       };
-      
+
       if (file.type === 'application/pdf') {
         // For PDF files, we'll simulate parsing
         setTimeout(() => {
@@ -183,16 +183,16 @@ export default function SimpleSkillDashboard() {
     });
   };
 
-  const uploadCertificate = async (skill, file) => {
+  const uploadCertificate = async (skill: { name: string; id?: number }, file: File) => {
     const userId = localStorage.getItem('userId');
     if (!userId || !skill || !file) return;
 
     setCertificateProcessing(true);
-    
+
     try {
       // Parse certificate to extract score
       const { score, proficiency } = await parseCertificate(file);
-      
+
       const formData = new FormData();
       formData.append('user_id', userId);
       formData.append('proficiency', proficiency);
@@ -205,7 +205,7 @@ export default function SimpleSkillDashboard() {
         method: 'POST',
         body: formData
       });
-      
+
       if (response.ok) {
         setVerifyDialog({ open: false, skill: null });
         setCertificateFile(null);
@@ -218,8 +218,8 @@ export default function SimpleSkillDashboard() {
     }
   };
 
-  const getQuizQuestions = (skillName) => {
-    const quizBank = {
+  const getQuizQuestions = (skillName: string): Array<{ question: string; options: string[]; correct: number }> => {
+    const quizBank: Record<string, Array<{ question: string; options: string[]; correct: number }>> = {
       'Python': [
         { question: 'What is the correct way to create a list in Python?', options: ['list = []', 'list = ()', 'list = {}', 'list = ""'], correct: 0 },
         { question: 'Which keyword is used to define a function in Python?', options: ['function', 'def', 'func', 'define'], correct: 1 },
@@ -242,7 +242,7 @@ export default function SimpleSkillDashboard() {
         { question: 'Which method is called after component mounts?', options: ['componentDidMount', 'useEffect', 'Both A and B', 'componentWillMount'], correct: 2 }
       ]
     };
-    
+
     return quizBank[skillName] || [
       { question: `What is the primary use of ${skillName}?`, options: ['Web Development', 'Data Analysis', 'Mobile Apps', 'All of the above'], correct: 3 },
       { question: `${skillName} is commonly used in which industry?`, options: ['Technology', 'Finance', 'Healthcare', 'All industries'], correct: 3 },
@@ -252,12 +252,12 @@ export default function SimpleSkillDashboard() {
     ];
   };
 
-  const startQuiz = (skill) => {
+  const startQuiz = (skill: { name: string }) => {
     const questions = getQuizQuestions(skill.name);
     setQuizState({ questions, currentQuestion: 0, answers: [], score: 0, completed: false, showAnswer: false, selectedAnswer: null });
   };
 
-  const answerQuestion = (selectedOption) => {
+  const answerQuestion = (selectedOption: number) => {
     setQuizState(prev => ({ 
       ...prev, 
       selectedAnswer: selectedOption, 
@@ -270,7 +270,7 @@ export default function SimpleSkillDashboard() {
     const nextQuestionIndex = quizState.currentQuestion + 1;
     
     if (nextQuestionIndex >= quizState.questions.length) {
-      const correctAnswers = quizState.questions.reduce((count, question, index) => {
+      const correctAnswers = quizState.questions.reduce((count: number, question: any, index: number) => {
         return count + (newAnswers[index] === question.correct ? 1 : 0);
       }, 0);
       
@@ -279,7 +279,9 @@ export default function SimpleSkillDashboard() {
       
       if (score >= 80) {
         setTimeout(() => {
-          verifySkillWithQuiz(quizDialog.skill, score);
+          if (quizDialog.skill) {
+            verifySkillWithQuiz(quizDialog.skill, score);
+          }
           setQuizDialog({ open: false, skill: null });
         }, 2000);
       }
@@ -294,7 +296,7 @@ export default function SimpleSkillDashboard() {
     }
   };
 
-  const verifySkillWithQuiz = async (skill, score) => {
+  const verifySkillWithQuiz = async (skill: { name: string; id?: number }, score: number) => {
     const userId = localStorage.getItem('userId');
     if (!userId || !skill) return;
 
@@ -302,14 +304,14 @@ export default function SimpleSkillDashboard() {
       // First, get or create the skill in the database
       let skillId = skill.id;
       if (!skillId) {
-        const createSkillResponse = await fetch('http://localhost:8000/api/skills/api/skills/create_default/', {
+        await fetch('http://localhost:8000/api/skills/api/skills/create_default/', {
           method: 'POST'
         });
         
         // Find the skill by name
         const skillsResponse = await fetch('http://localhost:8000/api/skills/api/skills/');
         const skills = await skillsResponse.json();
-        const foundSkill = skills.find(s => s.name === skill.name);
+        const foundSkill = skills.find((s: any) => s.name === skill.name);
         skillId = foundSkill?.id;
       }
       
@@ -618,8 +620,10 @@ export default function SimpleSkillDashboard() {
                 className="w-full justify-start h-auto p-4 border-2 border-blue-200 hover:border-blue-400"
                 variant="outline"
                 onClick={() => {
-                  setVerifyDialog({ open: false, skill: null });
-                  setQuizDialog({ open: true, skill: verifyDialog.skill });
+                  if (verifyDialog.skill) {
+                    setVerifyDialog({ open: false, skill: null });
+                    setQuizDialog({ open: true, skill: verifyDialog.skill });
+                  }
                 }}
               >
                 <div className="flex items-center gap-3">
@@ -670,7 +674,7 @@ export default function SimpleSkillDashboard() {
                   <Button 
                     size="sm" 
                     className="mt-2"
-                    onClick={() => uploadCertificate(verifyDialog.skill, certificateFile)}
+                    onClick={() => verifyDialog.skill && uploadCertificate(verifyDialog.skill, certificateFile)}
                   >
                     Verify with Certificate
                   </Button>
@@ -703,9 +707,9 @@ export default function SimpleSkillDashboard() {
                 </div>
                 
                 <div className="flex gap-2">
-                  <Button 
+                  <Button
                     className="flex-1"
-                    onClick={() => startQuiz(quizDialog.skill)}
+                    onClick={() => quizDialog.skill && startQuiz(quizDialog.skill)}
                   >
                     <Play className="w-4 h-4 mr-2" />
                     Start Assessment
@@ -733,8 +737,8 @@ export default function SimpleSkillDashboard() {
                   </h4>
                   
                   <div className="space-y-2">
-                    {quizState.questions[quizState.currentQuestion]?.options.map((option, index) => {
-                      const isCorrect = index === quizState.questions[quizState.currentQuestion]?.correct;
+                    {quizState.questions[quizState.currentQuestion]?.options.map((option: string, index: number) => {
+                      const isCorrect = index === (quizState.questions[quizState.currentQuestion] as any)?.correct;
                       const isSelected = quizState.selectedAnswer === index;
                       const showFeedback = quizState.showAnswer;
                       
@@ -815,7 +819,7 @@ export default function SimpleSkillDashboard() {
               <Button 
                 onClick={() => {
                   setQuizDialog({ open: false, skill: null });
-                  setQuizState({ questions: [], currentQuestion: 0, answers: [], score: 0, completed: false });
+                  setQuizState({ questions: [], currentQuestion: 0, answers: [], score: 0, completed: false, showAnswer: false, selectedAnswer: null });
                 }}
               >
                 Close

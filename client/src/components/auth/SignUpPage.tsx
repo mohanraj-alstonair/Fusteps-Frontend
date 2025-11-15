@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { useAuth, UserRole } from '../../hooks/use-auth';
+import { useAuth } from '../../hooks/use-auth';
 import { GraduationCap, Users, Briefcase, Star } from 'lucide-react';
 
 export default function SignUpPage() {
@@ -66,7 +66,7 @@ export default function SignUpPage() {
       
     } catch (error) {
       console.error('Registration failed:', error);
-      setError(error.message || 'Registration failed. Please try again.');
+      setError((error as Error).message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

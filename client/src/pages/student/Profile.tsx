@@ -1,21 +1,19 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { getUserProfile, updateUserProfile, api } from "@/lib/api";
+import { updateUserProfile } from "@/lib/api";
 import { 
   User, 
-  Mail, 
-  Phone, 
-  MapPin, 
+ 
   GraduationCap, 
-  Calendar,
+
   Edit3,
   Save,
   Upload,
@@ -23,14 +21,13 @@ import {
   Github,
   Globe,
   Award,
-  BookOpen,
+
   Target,
   Loader2,
   X,
   Plus,
   FileText,
-  Download,
-  Eye
+
 } from "lucide-react";
 import ProfileDebug from "@/components/ProfileDebug";
 import ResumeManager from "@/components/ResumeManager";
@@ -234,7 +231,7 @@ export default function StudentProfilePage() {
         console.error('Failed to load profile:', error);
         toast({
           title: "Error",
-          description: `Failed to load profile data: ${error.message}`,
+          description: `Failed to load profile data: ${(error as Error).message}`,
           variant: "destructive"
         });
       } finally {

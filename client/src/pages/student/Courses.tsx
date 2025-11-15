@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { getCourses, getUserCourses, enrollCourse, getCourseRecommendations, generateCourseRecommendations, getUserProfile, analyzeSkillGaps, getUserSkillTokens, getUserSkillGaps } from "@/lib/api";
+import { getCourses, getUserCourses, enrollCourse, getCourseRecommendations, generateCourseRecommendations, getUserProfile, analyzeSkillGaps, getUserSkillGaps } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,19 +19,17 @@ import {
   Award,
   PlayCircle,
   Star,
-  TrendingUp,
-  Lightbulb,
+
   Download,
   Share2,
   Users,
   Zap,
-  Plus,
+
   ArrowRight,
   Grid3X3,
   List,
   Brain,
-  Shield,
-  QrCode,
+
 } from "lucide-react";
 import SimpleSkillDashboard from '../../components/skills/SimpleSkillDashboard';
 
@@ -75,7 +73,7 @@ export default function StudentCoursesPage() {
       try {
         const profileRes = await getUserProfile(userIdNum);
         const skills = profileRes.data?.skills || [];
-        currentSkills = skills.map(skill => skill.name).filter(Boolean);
+        currentSkills = skills.map((skill: any) => skill.name).filter(Boolean);
       } catch (error) {
         console.log('No profile skills found');
       }
@@ -84,7 +82,7 @@ export default function StudentCoursesPage() {
       let skillGaps = [];
       try {
         const gapsRes = await getUserSkillGaps(userIdNum);
-        skillGaps = (gapsRes.data || []).map(gap => gap.skill?.name).filter(Boolean);
+        skillGaps = (gapsRes.data || []).map((gap: any) => gap.skill?.name).filter(Boolean);
       } catch (error) {
         console.log('No skill gaps found');
       }
@@ -214,22 +212,19 @@ export default function StudentCoursesPage() {
   ];
 
   // ------------------- STATE DATA -------------------
-  const [enrolledCourses, setEnrolledCourses] = useState([]);
-  const [availableCourses, setAvailableCourses] = useState([]);
+  const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<any[]>([]);
 
-  const [certificates, setCertificates] = useState([]);
+  const [certificates] = useState<any[]>([]);
 
-  const [skillProfile, setSkillProfile] = useState({
-    currentSkills: [],
-    targetSkills: [],
-    skillGaps: [],
+  const [, setSkillProfile] = useState({
+    currentSkills: [] as string[],
+    targetSkills: [] as string[],
+    skillGaps: [] as string[],
     overallStrength: 0,
   });
-  const [skills, setSkills] = useState([]);
-  const [userSkills, setUserSkills] = useState([]);
-  const [skillGaps, setSkillGaps] = useState([]);
 
-  const [aiRecommendations, setAiRecommendations] = useState([]);
+  const [, setAiRecommendations] = useState<any[]>([]);
   
   useEffect(() => {
     // Only fetch data if user is available
@@ -241,7 +236,7 @@ export default function StudentCoursesPage() {
 
   // ------------------- FILTERING -------------------
   const filteredEnrolledCourses = useMemo(() => {
-    return enrolledCourses.filter((c) => {
+    return enrolledCourses.filter((c: any) => {
       const q = searchQuery.toLowerCase();
       const course = c.course || c;
       const matchesSearch =
@@ -255,7 +250,7 @@ export default function StudentCoursesPage() {
   }, [enrolledCourses, searchQuery, selectedCategory]);
 
   const filteredAvailableCourses = useMemo(() => {
-    return availableCourses.filter((c) => {
+    return availableCourses.filter((c: any) => {
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         (c.title || '').toLowerCase().includes(q) ||
@@ -312,9 +307,7 @@ export default function StudentCoursesPage() {
     toast({ title: "Link Copied", description: "Certificate link copied to clipboard!" });
   };
 
-  const handleAddToLearningPlan = () => {
-    toast({ title: "Added to Plan", description: "Course added to your learning plan!" });
-  };
+
 
   // ------------------- RENDER -------------------
   // Show loading or login message if user is not available
@@ -459,7 +452,7 @@ export default function StudentCoursesPage() {
               </p>
             ) : (
               <div className="grid gap-6">
-                {filteredEnrolledCourses.map((c) => (
+                {filteredEnrolledCourses.map((c: any) => (
                   <Card key={c.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
@@ -519,7 +512,7 @@ export default function StudentCoursesPage() {
 
                           <div className="flex items-center justify-between">
                             <div className="flex flex-wrap gap-2">
-                              {(c.course?.skills_taught || []).slice(0, 3).map((skill, i) => (
+                              {(c.course?.skills_taught || []).slice(0, 3).map((skill: any, i: number) => (
                                 <Badge key={i} variant="outline">
                                   {skill.name || skill}
                                 </Badge>
@@ -590,7 +583,7 @@ export default function StudentCoursesPage() {
                     : "grid gap-6"
                 }
               >
-                {filteredAvailableCourses.map((c) => (
+                {filteredAvailableCourses.map((c: any) => (
                   <Card key={c.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
@@ -650,7 +643,7 @@ export default function StudentCoursesPage() {
 
                           <div className="flex items-center justify-between">
                             <div className="flex flex-wrap gap-2">
-                              {(c.skills_taught || []).slice(0, 3).map((skill, i) => (
+                              {(c.skills_taught || []).slice(0, 3).map((skill: any, i: number) => (
                                 <Badge key={i} variant="outline">
                                   {skill.name || skill}
                                 </Badge>
@@ -699,14 +692,14 @@ export default function StudentCoursesPage() {
                 </p>
                 <Button 
                   variant="outline"
-                  onClick={() => document.querySelector('[value="browse"]')?.click()}
+                  onClick={() => (document.querySelector('[value="browse"]') as HTMLElement)?.click()}
                 >
                   Browse Courses
                 </Button>
               </div>
             ) : (
               <div className="grid gap-6">
-                {certificates.map((cert) => (
+                {certificates.map((cert: any) => (
                   <Card key={cert.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
@@ -740,7 +733,7 @@ export default function StudentCoursesPage() {
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {cert.skills.map((s, i) => (
+                            {cert.skills.map((s: any, i: number) => (
                               <Badge key={i} variant="secondary" className="bg-green-100 text-green-800">
                                 {s}
                               </Badge>

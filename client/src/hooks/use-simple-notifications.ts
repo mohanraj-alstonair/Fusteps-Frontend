@@ -5,6 +5,7 @@ interface SimpleNotification {
   id: number;
   sender_id: string;
   sender_name: string;
+  sender_type: 'student' | 'mentor';
   content: string;
   timestamp: string;
 }
@@ -41,12 +42,13 @@ export function useSimpleNotifications() {
 
   // Expose global function for message notifications
   useEffect(() => {
-    (window as any).showMessageNotification = (senderName: string, senderId: string) => {
-      if (user && senderId !== user.id.toString()) {
+    (window as any).showMessageNotification = (senderName: string, senderId: string, senderType: 'student' | 'mentor' = 'student') => {
+      if (user && user.id && senderId !== user.id.toString()) {
         const notification: SimpleNotification = {
           id: Date.now() + Math.random(),
           sender_id: senderId,
           sender_name: senderName,
+          sender_type: senderType,
           content: `You have a new message from ${senderName}`,
           timestamp: new Date().toISOString()
         };

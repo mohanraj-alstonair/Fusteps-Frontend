@@ -9,7 +9,7 @@ import {
   Upload, 
   Github, 
   ExternalLink, 
-  Eye, 
+  Send, 
   Edit3, 
   Clock, 
   Grid3X3, 
@@ -17,11 +17,13 @@ import {
   Bell, 
   Plus,
   Star,
-  MessageCircle
+
+  Calendar,
+  User
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
-import { submitProjectIdea, getProjectIdeas, ProjectIdeaPayload, updateProjectIdea, deleteProjectIdea } from "@/lib/api";
+import { useState, useEffect, useRef } from "react";
+import { submitProjectIdea, getProjectIdeas, ProjectIdeaPayload, updateProjectIdea, deleteProjectIdea, listStudentConnections, sendProjectToMentor, uploadProject, getUploadedProjects, ProjectUploadPayload } from "@/lib/api";
 
 export default function StudentProjectsPage() {
   const { toast } = useToast();
@@ -30,10 +32,17 @@ export default function StudentProjectsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showNewIdeaModal, setShowNewIdeaModal] = useState(false);
-  const [showViewDetailsModal, setShowViewDetailsModal] = useState(false);
+  const [showSendToModal, setShowSendToModal] = useState(false);
   const [showEditIdeaModal, setShowEditIdeaModal] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedProject] = useState<any>(null);
   const [selectedIdea, setSelectedIdea] = useState<any>(null);
+  const [connectedMentors, setConnectedMentors] = useState<any[]>([]);
+  const [selectedMentor, setSelectedMentor] = useState<any>(null);
+
+  // Refs to track if data has been loaded to prevent continuous polling
+  const projectIdeasLoaded = useRef(false);
+  const uploadedProjectsLoaded = useRef(false);
+
   const [feedbackText, setFeedbackText] = useState("");
   const [editForm, setEditForm] = useState({
     title: "",
@@ -71,31 +80,24 @@ export default function StudentProjectsPage() {
     customCategory: ""
   });
 
-  const openFeedbackModal = (project: any) => {
-    setSelectedProject(project);
-    setShowFeedbackModal(true);
-  };
 
-  const openEditModal = (project: any) => {
-    setSelectedProject(project);
-    setEditForm({
-      title: project.title,
-      description: project.description,
-      technologies: project.technologies.join(', '),
-      githubUrl: project.githubUrl,
-      liveUrl: project.liveUrl || ''
-    });
-    setShowEditModal(true);
-  };
 
-  const openNotificationsModal = (project: any) => {
-    setSelectedProject(project);
-    setShowNotificationsModal(true);
-  };
-
-  const openViewDetails = (idea: any) => {
+  const openSendTo = async (idea: any) => {
     setSelectedIdea(idea);
-    setShowViewDetailsModal(true);
+    try {
+      const userId = localStorage.getItem('userId') || localStorage.getItem('studentId') || '4';
+      const response = await listStudentConnections(parseInt(userId));
+      const acceptedMentors = response.data.filter((connection: any) => connection.status === 'accepted');
+      setConnectedMentors(acceptedMentors);
+      setShowSendToModal(true);
+    } catch (error) {
+      console.error('Error fetching connected mentors:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load connected mentors",
+        variant: "destructive"
+      });
+    }
   };
 
   const openEditIdea = (idea: any) => {
@@ -176,6 +178,7 @@ export default function StudentProjectsPage() {
         });
         
         // Refresh project ideas
+        projectIdeasLoaded.current = false; // Reset flag to allow refresh
         loadProjectIdeas();
       } catch (error: any) {
         console.error('Error submitting project idea:', error);
@@ -220,13 +223,14 @@ export default function StudentProjectsPage() {
         description: `Your idea "${idea.title}" has been deleted.`
       });
       
+      projectIdeasLoaded.current = false; // Reset flag to allow refresh
       loadProjectIdeas();
-      
+
     } catch (error: any) {
       console.error('Error deleting project idea:', error);
-      
+
       let errorMessage = "Failed to delete project idea. Please try again.";
-      
+
       if (error.response) {
         const serverError = error.response.data?.error || error.response.data?.message || 'Unknown error';
         errorMessage = `Server error (${error.response.status}): ${serverError}`;
@@ -235,7 +239,7 @@ export default function StudentProjectsPage() {
       } else {
         errorMessage = `Error: ${error.message}`;
       }
-      
+
       toast({
         title: "Error",
         description: errorMessage,
@@ -263,7 +267,7 @@ export default function StudentProjectsPage() {
         category: finalCategory
       };
 
-      const response = await updateProjectIdea(selectedIdea.id, updatePayload);
+      await updateProjectIdea(selectedIdea.id, updatePayload);
       
       toast({
         title: "Idea Updated!",
@@ -271,6 +275,7 @@ export default function StudentProjectsPage() {
       });
       
       setShowEditIdeaModal(false);
+      projectIdeasLoaded.current = false; // Reset flag to allow refresh
       loadProjectIdeas();
       
     } catch (error: any) {
@@ -295,54 +300,41 @@ export default function StudentProjectsPage() {
     }
   };
 
-  const myProjects = [
-    {
-      id: 1,
-      title: "E-commerce Website",
-      description: "Full-stack web application with React frontend and Node.js backend",
-      status: "Under Review",
-      statusColor: "yellow",
-      uploadDate: "Feb 10, 2024",
-      technologies: ["React", "Node.js", "MongoDB"],
-      githubUrl: "https://github.com/student/ecommerce-app",
-      liveUrl: "https://myecommerce-demo.netlify.app",
-      mentorFeedback: "Great project structure! Consider adding more test cases.",
-      rating: 4.2,
-      category: "Web Development"
-    },
-    {
-      id: 2,
-      title: "Mobile Weather App",
-      description: "React Native app with real-time weather data and location services",
-      status: "Approved",
-      statusColor: "green",
-      uploadDate: "Jan 25, 2024",
-      technologies: ["React Native", "API Integration", "Firebase"],
-      githubUrl: "https://github.com/student/weather-app",
-      liveUrl: null,
-      mentorFeedback: "Excellent UI/UX design and clean code implementation!",
-      rating: 4.8,
-      category: "Mobile Development"
-    }
-  ];
+
 
   const [projectIdeas, setProjectIdeas] = useState<any[]>([]);
+  const [uploadedProjects, setUploadedProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadForm, setUploadForm] = useState({
+    title: "",
+    description: "",
+    category: "Web Development",
+    technologies: "",
+    github_url: "",
+    live_url: "",
+    additional_notes: ""
+  });
 
   const loadProjectIdeas = async () => {
+    // Prevent loading if already loaded
+    if (projectIdeasLoaded.current) {
+      return;
+    }
+
     try {
       setIsLoading(true);
       const userId = localStorage.getItem('userId') || localStorage.getItem('studentId') || '4';
       const userIdNum = parseInt(userId);
-      
+
       console.log('Loading project ideas for user ID:', userIdNum);
       const response = await getProjectIdeas(userIdNum);
       console.log('Project ideas response:', response);
-      
+
       const freshData = Array.isArray(response.data) ? response.data : [];
       setProjectIdeas(freshData);
-      
+
       console.log('Set project ideas count:', freshData.length);
+      projectIdeasLoaded.current = true; // Mark as loaded
     } catch (error) {
       console.error('Error loading project ideas:', error);
       setProjectIdeas([]);
@@ -351,8 +343,83 @@ export default function StudentProjectsPage() {
     }
   };
 
+  const loadUploadedProjects = async () => {
+    // Prevent loading if already loaded
+    if (uploadedProjectsLoaded.current) {
+      return;
+    }
+
+    try {
+      const userId = localStorage.getItem('userId') || localStorage.getItem('studentId') || '4';
+      const userIdNum = parseInt(userId);
+
+      const response = await getUploadedProjects(userIdNum);
+      const freshData = Array.isArray(response.data) ? response.data : [];
+      setUploadedProjects(freshData);
+      uploadedProjectsLoaded.current = true; // Mark as loaded
+    } catch (error) {
+      console.error('Error loading uploaded projects:', error);
+      setUploadedProjects([]);
+    }
+  };
+
+  const handleUploadProject = async () => {
+    if (!uploadForm.title.trim() || !uploadForm.description.trim() || !uploadForm.github_url.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const userId = localStorage.getItem('userId') || localStorage.getItem('studentId') || '4';
+      const userIdNum = parseInt(userId);
+
+      const payload: ProjectUploadPayload = {
+        user_id: userIdNum,
+        title: uploadForm.title,
+        description: uploadForm.description,
+        category: uploadForm.category,
+        technologies: uploadForm.technologies,
+        github_url: uploadForm.github_url,
+        live_url: uploadForm.live_url || undefined,
+        additional_notes: uploadForm.additional_notes || undefined
+      };
+
+      await uploadProject(payload);
+      
+      toast({
+        title: "Project Uploaded!",
+        description: `Your project "${uploadForm.title}" has been submitted for review.`
+      });
+      
+      setUploadForm({
+        title: "",
+        description: "",
+        category: "Web Development",
+        technologies: "",
+        github_url: "",
+        live_url: "",
+        additional_notes: ""
+      });
+      
+      uploadedProjectsLoaded.current = false; // Reset flag to allow refresh
+      loadUploadedProjects();
+    } catch (error: any) {
+      console.error('Error uploading project:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload project. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   useEffect(() => {
     loadProjectIdeas();
+    loadUploadedProjects();
   }, []);
 
   return (
@@ -366,7 +433,7 @@ export default function StudentProjectsPage() {
 
       <Tabs defaultValue="my-projects" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="my-projects">My Projects ({myProjects.length})</TabsTrigger>
+          <TabsTrigger value="my-projects">My Projects ({uploadedProjects.length})</TabsTrigger>
           <TabsTrigger value="upload">Upload Project</TabsTrigger>
           <TabsTrigger value="ideas">Project Ideas</TabsTrigger>
         </TabsList>
@@ -374,83 +441,91 @@ export default function StudentProjectsPage() {
         {/* === My Projects Tab === */}
         <TabsContent value="my-projects" className="space-y-6">
           <div className="grid gap-6">
-            {myProjects.map((project) => (
-              <Card key={project.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CardTitle className="text-xl">{project.title}</CardTitle>
-                        <Badge 
-                          variant="secondary" 
-                          className={`${
-                            project.statusColor === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
-                            project.statusColor === 'green' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {project.status}
+            {uploadedProjects.length === 0 ? (
+              <div className="text-center py-12">
+                <Upload className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No projects uploaded yet</h3>
+                <p className="text-gray-600 mb-4">Upload your first project to showcase your skills to mentors</p>
+              </div>
+            ) : (
+              uploadedProjects.map((project) => (
+                <Card key={project.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CardTitle className="text-xl">{project.title}</CardTitle>
+                          <Badge 
+                            variant="secondary" 
+                            className={`${
+                              project.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
+                              project.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {project.status}
+                          </Badge>
+                          <Badge variant="outline">{project.category}</Badge>
+                        </div>
+                        <CardDescription className="mb-4">
+                          {project.description}
+                        </CardDescription>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            Uploaded {new Date(project.created_at).toLocaleDateString()}
+                          </div>
+                          {project.rating && (
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-yellow-500" />
+                              {project.rating}/5.0
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {project.technologies.map((tech: string) => (
+                        <Badge key={tech} variant="secondary" className="bg-blue-50 text-blue-700">
+                          {tech}
                         </Badge>
-                        <Badge variant="outline">{project.category}</Badge>
-                      </div>
-                      <CardDescription className="mb-4">
-                        {project.description}
-                      </CardDescription>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          Uploaded {project.uploadDate}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-yellow-500" />
-                          {project.rating}/5.0
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {project.technologies.map((tech: string) => (
-                      <Badge key={tech} variant="secondary" className="bg-blue-50 text-blue-700">
-                        {tech}
-                      </Badge>
-                    ))}
-                  </div>
-                  
-                  {project.mentorFeedback && (
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <p className="text-sm font-medium text-green-800 mb-1">Mentor Feedback:</p>
-                      <p className="text-sm text-green-700">{project.mentorFeedback}</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 flex-wrap">
-                    <Button variant="outline" onClick={() => window.open(project.githubUrl, '_blank')}>
-                      <Github className="w-4 h-4 mr-2" />
-                      View Code
-                    </Button>
-                    {project.liveUrl && (
-                      <Button variant="outline" onClick={() => window.open(project.liveUrl, '_blank')}>
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Live Demo
-                      </Button>
+                    
+                    {project.mentor_feedback && (
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-green-800">Mentor Feedback:</p>
+                          {project.rating && (
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                              <span className="text-sm font-medium text-green-800">{project.rating}/5</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-green-700">{project.mentor_feedback}</p>
+                      </div>
                     )}
-                    <Button variant="outline" onClick={() => openFeedbackModal(project)}>
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Request Feedback
-                    </Button>
-                    <Button variant="outline" onClick={() => openEditModal(project)}>
-                      Edit Project
-                    </Button>
-                    <Button variant="outline" onClick={() => openNotificationsModal(project)}>
-                      <Bell className="w-4 h-4 mr-2" />
-                      Notifications
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+                    <div className="flex gap-2 flex-wrap">
+                      <Button variant="outline" onClick={() => window.open(project.github_url, '_blank')}>
+                        <Github className="w-4 h-4 mr-2" />
+                        View Code
+                      </Button>
+                      {project.live_url && (
+                        <Button variant="outline" onClick={() => window.open(project.live_url, '_blank')}>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Live Demo
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+
           </div>
         </TabsContent>
 
@@ -470,7 +545,11 @@ export default function StudentProjectsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium">Project Title *</label>
-                  <Input placeholder="Enter your project title" />
+                  <Input 
+                    placeholder="Enter your project title" 
+                    value={uploadForm.title}
+                    onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
+                  />
                 </div>
                 
                 <div>
@@ -478,13 +557,19 @@ export default function StudentProjectsPage() {
                   <Textarea 
                     placeholder="Describe what your project does and what problems it solves"
                     rows={4}
+                    value={uploadForm.description}
+                    onChange={(e) => setUploadForm(prev => ({ ...prev, description: e.target.value }))}
                   />
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium">Category *</label>
-                    <select className="w-full p-2 border border-gray-300 rounded-md">
+                    <select 
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={uploadForm.category}
+                      onChange={(e) => setUploadForm(prev => ({ ...prev, category: e.target.value }))}
+                    >
                       <option>Web Development</option>
                       <option>Mobile Development</option>
                       <option>Backend Development</option>
@@ -496,18 +581,30 @@ export default function StudentProjectsPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium">Technologies Used</label>
-                    <Input placeholder="React, Node.js, MongoDB..." />
+                    <Input 
+                      placeholder="React, Node.js, MongoDB..."
+                      value={uploadForm.technologies}
+                      onChange={(e) => setUploadForm(prev => ({ ...prev, technologies: e.target.value }))}
+                    />
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium">GitHub Repository *</label>
-                    <Input placeholder="https://github.com/username/repo" />
+                    <Input 
+                      placeholder="https://github.com/username/repo"
+                      value={uploadForm.github_url}
+                      onChange={(e) => setUploadForm(prev => ({ ...prev, github_url: e.target.value }))}
+                    />
                   </div>
                   <div>
                     <label className="text-sm font-medium">Live Demo URL</label>
-                    <Input placeholder="https://your-project.netlify.app" />
+                    <Input 
+                      placeholder="https://your-project.netlify.app"
+                      value={uploadForm.live_url}
+                      onChange={(e) => setUploadForm(prev => ({ ...prev, live_url: e.target.value }))}
+                    />
                   </div>
                 </div>
                 
@@ -516,6 +613,8 @@ export default function StudentProjectsPage() {
                   <Textarea 
                     placeholder="Any additional information about your project, challenges faced, or areas where you'd like specific feedback"
                     rows={3}
+                    value={uploadForm.additional_notes}
+                    onChange={(e) => setUploadForm(prev => ({ ...prev, additional_notes: e.target.value }))}
                   />
                 </div>
               </div>
@@ -523,22 +622,11 @@ export default function StudentProjectsPage() {
               <div className="flex gap-2">
                 <Button 
                   className="bg-fusteps-red hover:bg-red-600" 
-                  onClick={() => toast({ 
-                    title: 'Project Uploaded', 
-                    description: 'Your project has been submitted for review!' 
-                  })}
+                  onClick={handleUploadProject}
+                  disabled={!uploadForm.title.trim() || !uploadForm.description.trim() || !uploadForm.github_url.trim()}
                 >
                   <Upload className="w-4 h-4 mr-2" />
                   Upload Project
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => toast({ 
-                    title: 'Draft Saved', 
-                    description: 'Your project has been saved as draft' 
-                  })}
-                >
-                  Save as Draft
                 </Button>
               </div>
             </CardContent>
@@ -613,6 +701,21 @@ export default function StudentProjectsPage() {
                           >
                             {idea.difficulty_level}
                           </Badge>
+                          {idea.mentor_review_notes && (
+                            <Badge 
+                              className={`${
+                                idea.mentor_review_notes.startsWith('APPROVED') ? 'bg-green-600 text-white' :
+                                idea.mentor_review_notes.startsWith('REJECTED') ? 'bg-red-600 text-white' :
+                                idea.mentor_review_notes.startsWith('UNDER REVIEW') ? 'bg-blue-600 text-white' :
+                                'bg-gray-600 text-white'
+                              }`}
+                            >
+                              {idea.mentor_review_notes.startsWith('APPROVED') ? 'Approved' :
+                               idea.mentor_review_notes.startsWith('REJECTED') ? 'Rejected' :
+                               idea.mentor_review_notes.startsWith('UNDER REVIEW') ? 'Under Review' :
+                               'Reviewed'}
+                            </Badge>
+                          )}
                         </div>
                         <CardDescription className="mb-4">
                           {idea.description}
@@ -622,6 +725,12 @@ export default function StudentProjectsPage() {
                             <Clock className="w-4 h-4" />
                             {idea.estimated_time}
                           </div>
+                          {idea.assigned_mentor && (
+                            <div className="flex items-center gap-1">
+                              <User className="w-4 h-4" />
+                              Assigned to {idea.assigned_mentor.name}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -638,13 +747,58 @@ export default function StudentProjectsPage() {
                       </div>
                     </div>
 
+                    {idea.mentor_review_notes && (
+                      <div className={`p-3 rounded-lg mb-4 ${
+                        idea.mentor_review_notes.startsWith('APPROVED') ? 'bg-green-50' :
+                        idea.mentor_review_notes.startsWith('REJECTED') ? 'bg-red-50' :
+                        idea.mentor_review_notes.startsWith('UNDER REVIEW') ? 'bg-blue-50' :
+                        'bg-gray-50'
+                      }`}>
+                        <p className={`text-sm font-medium mb-2 ${
+                          idea.mentor_review_notes.startsWith('APPROVED') ? 'text-green-800' :
+                          idea.mentor_review_notes.startsWith('REJECTED') ? 'text-red-800' :
+                          idea.mentor_review_notes.startsWith('UNDER REVIEW') ? 'text-blue-800' :
+                          'text-gray-800'
+                        }`}>
+                          Mentor Review Status:
+                        </p>
+                        <p className={`text-sm ${
+                          idea.mentor_review_notes.startsWith('APPROVED') ? 'text-green-700' :
+                          idea.mentor_review_notes.startsWith('REJECTED') ? 'text-red-700' :
+                          idea.mentor_review_notes.startsWith('UNDER REVIEW') ? 'text-blue-700' :
+                          'text-gray-700'
+                        }`}>
+                          {idea.mentor_review_notes}
+                        </p>
+                      </div>
+                    )}
+
+                    {(idea.literature_review_date || idea.prototype_demo_date) && (
+                      <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                        <p className="text-sm font-medium text-blue-800 mb-2">Project Timeline:</p>
+                        {idea.literature_review_date && (
+                          <div className="flex items-center gap-2 text-sm text-blue-700 mb-1">
+                            <Calendar className="w-4 h-4" />
+                            Literature Review: {new Date(idea.literature_review_date).toLocaleDateString()}
+                          </div>
+                        )}
+                        {idea.prototype_demo_date && (
+                          <div className="flex items-center gap-2 text-sm text-blue-700">
+                            <Calendar className="w-4 h-4" />
+                            Prototype Demo: {new Date(idea.prototype_demo_date).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex gap-2">
                       <Button 
                         className="bg-fusteps-red hover:bg-red-600" 
-                        onClick={() => openViewDetails(idea)}
+                        onClick={() => openSendTo(idea)}
+                        disabled={!!idea.assigned_mentor}
                       >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
+                        <Send className="w-4 h-4 mr-2" />
+                        {idea.assigned_mentor ? 'Sent' : 'Send To'}
                       </Button>
                       <Button 
                         variant="outline" 
@@ -787,39 +941,116 @@ export default function StudentProjectsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* === View Details Modal === */}
-      <Dialog open={showViewDetailsModal} onOpenChange={setShowViewDetailsModal}>
-        <DialogContent className="sm:max-w-lg">
+      {/* === Send To Modal (simplified) === */}
+      <Dialog open={showSendToModal} onOpenChange={setShowSendToModal}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{selectedIdea?.title}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5" />
+              Send Project to Mentor
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Description</p>
-              <p className="text-sm">{selectedIdea?.description}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="font-medium text-gray-600">Estimated Time</p>
-                <p>{selectedIdea?.estimated_time}</p>
-              </div>
-              <div>
-                <p className="font-medium text-gray-600">Difficulty</p>
-                <p>{selectedIdea?.difficulty_level}</p>
-              </div>
-            </div>
-            <div>
-              <p className="font-medium text-gray-600">Skills</p>
-              <p>{selectedIdea?.skills_involved || 'No skills specified'}</p>
-            </div>
-            <div>
-              <p className="font-medium text-gray-600">Category</p>
-              <p>{selectedIdea?.category}</p>
+
+    <div className="space-y-4 py-4">
+      {/* Project details */}
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h4 className="font-medium text-gray-900 mb-2">Project Details</h4>
+        <p className="text-sm font-medium text-gray-600 mb-1">
+          Title: <span className="font-semibold">{selectedIdea?.title}</span>
+        </p>
+        <p className="text-sm text-gray-700 mb-2">{selectedIdea?.description}</p>
+        <div className="flex items-center gap-4 text-sm text-gray-500">
+          <span>Category: {selectedIdea?.category}</span>
+          <span>Difficulty: {selectedIdea?.difficulty_level}</span>
+          <span>Estimated Time: {selectedIdea?.estimated_time}</span>
+        </div>
+        {selectedIdea?.skills_involved && (
+          <div className="mt-2">
+            <p className="text-sm font-medium text-gray-700 mb-1">Skills Involved:</p>
+            <div className="flex flex-wrap gap-1">
+              {selectedIdea.skills_involved.split(',').map((skill: string, idx: number) => (
+                <Badge key={idx} variant="secondary" className="text-xs bg-blue-50 text-blue-700">
+                  {skill.trim()}
+                </Badge>
+              ))}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Mentor selector */}
+      <div>
+        <label className="text-sm font-medium">Select Mentor *</label>
+        <select
+          className="w-full p-2 border border-gray-300 rounded-md mt-1"
+          value={selectedMentor?.mentor ?? ''}
+          onChange={(e) => {
+            const mentor = connectedMentors.find(m => m.mentor === parseInt(e.target.value));
+            setSelectedMentor(mentor ?? null);
+          }}
+        >
+          <option value="">Choose a mentor…</option>
+          {connectedMentors.map((c) => (
+            <option key={c.mentor} value={c.mentor}>
+              {c.mentor_name} – {c.mentor_email}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Empty-state when no mentors */}
+      {connectedMentors.length === 0 && (
+        <p className="text-center text-sm text-gray-500">
+          No connected mentors. Connect with a mentor first.
+        </p>
+      )}
+    </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowViewDetailsModal(false)}>
-              Close
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSendToModal(false);
+                setSelectedMentor(null);
+              }}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              className="bg-fusteps-red hover:bg-red-600"
+              disabled={!selectedMentor || connectedMentors.length === 0}
+              onClick={async () => {
+                if (!selectedMentor || !selectedIdea) return;
+
+                try {
+                  const userId = localStorage.getItem('userId') || localStorage.getItem('studentId') || '4';
+                  await sendProjectToMentor(selectedIdea.id, {
+                    mentor_id: selectedMentor.mentor,
+                    student_id: parseInt(userId),
+                  });
+
+                  toast({
+                    title: "Project Sent!",
+                    description: `Project "${selectedIdea.title}" sent to ${selectedMentor.mentor_name}`,
+                  });
+
+                  projectIdeasLoaded.current = false; // Reset flag to allow refresh
+                  loadProjectIdeas();               // refresh list
+                  setShowSendToModal(false);
+                  setSelectedMentor(null);
+                } catch (error: any) {
+                  console.error('Error sending project:', error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to send project",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Send Project
             </Button>
           </DialogFooter>
         </DialogContent>

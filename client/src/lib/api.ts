@@ -346,6 +346,14 @@ export type ProjectIdeaPayload = {
   category?: string;
 };
 
+export type SendProjectToMentorPayload = {
+  mentor_id: number;
+  student_id: number;
+  literature_review_date?: string;
+  prototype_demo_date?: string;
+  mentor_review_notes?: string;
+};
+
 export const submitProjectIdea = (payload: ProjectIdeaPayload) =>
   api.post('/api/project-ideas/submit/', payload);
 
@@ -357,5 +365,39 @@ export const updateProjectIdea = (projectId: number, payload: Partial<ProjectIde
 
 export const deleteProjectIdea = (projectId: number, userId: number) =>
   api.delete(`/api/project-ideas/${projectId}/delete/`, { data: { user_id: userId } });
+
+export const sendProjectToMentor = (projectId: number, payload: SendProjectToMentorPayload) =>
+  api.post(`/api/project-ideas/${projectId}/send-to-mentor/`, payload);
+
+// Mentor Project Ideas APIs
+export const getMentorProjectIdeas = (mentorId: number) =>
+  api.get(`/api/mentor/project-ideas/?mentor_id=${mentorId}&_t=${Date.now()}`);
+
+export const updateProjectStatus = (projectId: number, payload: { mentor_id: number; action: 'approve' | 'reject' | 'review'; literature_review_date?: string; prototype_demo_date?: string; mentor_review_notes?: string }) =>
+  api.patch(`/api/project-ideas/${projectId}/status/`, payload);
+
+export const getMentorNotifications = (mentorId: number) =>
+  api.get(`/api/mentor/notifications/?mentor_id=${mentorId}&_t=${Date.now()}`);
+
+// Project Upload APIs
+export type ProjectUploadPayload = {
+  user_id: number;
+  title: string;
+  description: string;
+  category: string;
+  technologies: string;
+  github_url: string;
+  live_url?: string;
+  additional_notes?: string;
+};
+
+export const uploadProject = (payload: ProjectUploadPayload) =>
+  api.post('/api/projects/upload/', payload);
+
+export const getUploadedProjects = (userId: number) =>
+  api.get(`/api/projects/uploaded/?user_id=${userId}&_t=${Date.now()}`);
+
+export const submitProjectFeedback = (projectId: number, payload: { mentor_id: number; feedback: string; rating?: number }) =>
+  api.post(`/api/projects/${projectId}/feedback/`, payload);
 
 

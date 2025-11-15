@@ -3,6 +3,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ensure base styles are applied */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
 :root {
   --background: 0 0% 100%;
   --foreground: 20 14.3% 4.1%;
@@ -56,6 +71,16 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+  button {
+    @apply cursor-pointer;
+  }
+  input, textarea, select {
+    @apply border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
   }
 }
 
@@ -108,77 +133,94 @@
   
   /* Professional Skill Dashboard Styles */
   .skill-token-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-    border: 2px solid #e2e8f0;
-    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    @apply bg-white border-2 border-gray-200 rounded-lg p-4 transition-all duration-300;
   }
   
   .skill-token-card:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
-    transform: translateY(-4px);
+    @apply border-blue-500 shadow-lg transform -translate-y-1;
   }
   
   .skill-gap-card {
-    background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
-    border: 2px solid #fecaca;
-    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    @apply bg-red-50 border-2 border-red-200 rounded-lg p-4 transition-all duration-300;
   }
   
   .skill-gap-card:hover {
-    border-color: #ef4444;
-    box-shadow: 0 20px 40px rgba(239, 68, 68, 0.1);
-    transform: translateY(-4px);
+    @apply border-red-500 shadow-lg transform -translate-y-1;
   }
   
   .recommendation-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
-    border: 2px solid #bbf7d0;
-    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    @apply bg-green-50 border-2 border-green-200 rounded-lg p-4 transition-all duration-300;
   }
   
   .recommendation-card:hover {
-    border-color: #22c55e;
-    box-shadow: 0 20px 40px rgba(34, 197, 94, 0.1);
-    transform: translateY(-4px);
+    @apply border-green-500 shadow-lg transform -translate-y-1;
   }
   
   .gradient-text {
-    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
   }
   
   .glass-effect {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    @apply bg-white bg-opacity-10 backdrop-blur-sm border border-white border-opacity-20;
+  }
+  
+  /* Button Styles */
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md transition-colors duration-200;
+  }
+  
+  /* Card Styles */
+  .card {
+    @apply bg-white rounded-lg shadow-md border border-gray-200 p-6;
+  }
+  
+  .card-header {
+    @apply mb-4 pb-4 border-b border-gray-200;
+  }
+  
+  /* Form Styles */
+  .form-input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-2;
   }
 
 }
 
 @media (max-width: 768px) {
   .sidebar-mobile {
-    transform: translateX(-100%);
-    transition: transform 300ms ease-in-out;
+    @apply -translate-x-full transition-transform duration-300 ease-in-out;
   }
 
   .sidebar-mobile.open {
-    transform: translateX(0);
+    @apply translate-x-0;
   }
   
-  /* Mobile optimizations for skill dashboard */
+  /* Mobile optimizations */
   .skill-token-card,
   .skill-gap-card,
   .recommendation-card {
-    transform: none !important;
+    @apply transform-none;
   }
   
   .skill-token-card:hover,
   .skill-gap-card:hover,
   .recommendation-card:hover {
-    transform: none !important;
+    @apply transform-none;
+  }
+  
+  .card {
+    @apply mx-2;
+  }
+  
+  .container {
+    @apply px-4;
   }
 }
 

@@ -13,7 +13,7 @@ interface MessageNotification {
 
 export function useMessageNotifications() {
   const [notifications, setNotifications] = useState<MessageNotification[]>([]);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+
   const { user } = useAuth();
 
   const removeNotification = useCallback((id: number) => {
@@ -50,7 +50,7 @@ export function useMessageNotifications() {
     
     ws.onopen = () => {
       console.log('Global notification WebSocket connected for user:', user.id);
-      setSocket(ws);
+
     };
 
     ws.onerror = (error) => {
@@ -63,7 +63,7 @@ export function useMessageNotifications() {
         const data = JSON.parse(event.data);
         console.log('Parsed notification data:', data);
         
-        if (data.type === 'message_notification' && data.receiver_id === user.id.toString()) {
+        if (data.type === 'message_notification' && user.id && data.receiver_id === user.id.toString()) {
           const notification: MessageNotification = {
             id: Date.now() + Math.random(),
             sender_id: data.sender_id,
@@ -84,7 +84,7 @@ export function useMessageNotifications() {
 
     ws.onclose = () => {
       console.log('Notification WebSocket disconnected');
-      setSocket(null);
+
     };
 
     // Listen for test notifications

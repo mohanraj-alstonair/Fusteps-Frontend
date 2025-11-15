@@ -21,7 +21,12 @@ import {
   rejectBooking,
   getAcceptedBookings,
   submitMentorFeedback,
-  getMentorFeedback
+  getMentorFeedback,
+  getMentorProjectIdeas,
+  updateProjectStatus,
+  getMentorNotifications,
+  getUploadedProjects,
+  submitProjectFeedback
 } from '@/lib/api';
 import {
   MessageSquare,
@@ -39,7 +44,15 @@ import {
   XCircle,
   Lock,
   Trash2,
-  Star
+  Star,
+  Lightbulb,
+  User,
+  ThumbsUp,
+  ThumbsDown,
+  FileText,
+  FolderOpen,
+  Github,
+  ExternalLink
 } from 'lucide-react';
 
 interface Mentee {
@@ -117,6 +130,38 @@ export default function Mentees() {
   });
   const [isViewMode, setIsViewMode] = useState(false);
   const [mentorFeedbacks, setMentorFeedbacks] = useState<Record<string, { rating: number; review: string }>>({});
+  
+  // Project Ideas State
+  const [projectIdeas, setProjectIdeas] = useState<any[]>([]);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [projectAction, setProjectAction] = useState<'approve' | 'reject' | 'review'>('review');
+  const [projectForm, setProjectForm] = useState({
+    literature_review_date: '',
+    prototype_demo_date: '',
+    mentor_review_notes: ''
+  });
+
+  
+  // Notifications State
+  const [notifications, setNotifications] = useState({
+    pending_requests: 0,
+    pending_bookings: 0,
+    new_projects: 0,
+    unread_messages: 0,
+    total_notifications: 0
+  });
+
+  // Student Projects State
+  const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const [selectedMenteeForProjects, setSelectedMenteeForProjects] = useState<Mentee | null>(null);
+  const [studentProjects, setStudentProjects] = useState<any[]>([]);
+  const [showProjectFeedbackModal, setShowProjectFeedbackModal] = useState(false);
+  const [selectedProjectForFeedback, setSelectedProjectForFeedback] = useState<any>(null);
+  const [projectFeedbackForm, setProjectFeedbackForm] = useState({
+    feedback: '',
+    rating: 0
+  });
 
   useEffect(() => {
     const getMentorId = () => {
@@ -140,26 +185,28 @@ export default function Mentees() {
     };
 
     const fetchData = async () => {
+      // Only fetch if page is visible
+      if (document.hidden) return;
+      
       try {
         const mentorId = getMentorId();
-        console.log('Using mentor ID:', mentorId);
 
         const requestsResponse = await listMentorRequests(parseInt(mentorId));
         setMenteeRequests(requestsResponse.data);
 
         const menteesResponse = await getAcceptedMentees(parseInt(mentorId));
         const acceptedMentees = menteesResponse.data.map((mentee: any) => ({
-          id: mentee.id.toString(),
-          name: mentee.name,
+          id: mentee.id ? mentee.id.toString() : '',
+          name: mentee.name || 'Unknown',
           avatar: '/api/placeholder/80/80',
-          email: mentee.email,
-          university: mentee.university,
-          major: mentee.major,
-          year: mentee.year,
-          location: mentee.location,
-          joinedDate: mentee.joinedDate,
-          lastActive: mentee.lastActive,
-          status: mentee.status as 'active' | 'inactive' | 'graduated',
+          email: mentee.email || '',
+          university: mentee.university || 'Unknown University',
+          major: mentee.major || 'Unknown Major',
+          year: mentee.year || 'Unknown',
+          location: mentee.location || 'Unknown',
+          joinedDate: mentee.joinedDate || new Date().toISOString().split('T')[0],
+          lastActive: mentee.lastActive || new Date().toISOString().split('T')[0],
+          status: (mentee.status || 'active') as 'active' | 'inactive' | 'graduated',
           goals: [],
           skills: [],
           progress: {
@@ -190,23 +237,44 @@ export default function Mentees() {
 
         const unreadCounts: { [key: string]: number } = {};
         for (const mentee of acceptedMentees) {
-          const conversation = await getConversation(parseInt(mentee.id), parseInt(mentorId));
-          const unread = conversation.data.messages.filter((msg: any) =>
-            msg.sender_type === 'mentee' && !msg.is_read
-          ).length;
-          unreadCounts[mentee.id] = unread;
+          if (mentee.id) {
+            try {
+              const conversation = await getConversation(parseInt(mentee.id), parseInt(mentorId));
+              const unread = conversation.data.messages.filter((msg: any) =>
+                msg.sender_type === 'mentee' && !msg.is_read
+              ).length;
+              unreadCounts[mentee.id] = unread;
+            } catch (error) {
+              console.error(`Error fetching conversation for mentee ${mentee.id}:`, error);
+              unreadCounts[mentee.id] = 0;
+            }
+          }
         }
         setUnreadMessages(unreadCounts);
 
         const feedbackResponse = await getMentorFeedback(parseInt(mentorId));
         const feedbackMap: Record<string, { rating: number; review: string }> = {};
         feedbackResponse.data.forEach((feedback: any) => {
-          feedbackMap[feedback.student_id.toString()] = {
-            rating: feedback.mentor_ratings,
-            review: feedback.mentor_feedback
-          };
+          if (feedback.student_id) {
+            feedbackMap[feedback.student_id.toString()] = {
+              rating: feedback.mentor_ratings || 0,
+              review: feedback.mentor_feedback || ''
+            };
+          }
         });
         setMentorFeedbacks(feedbackMap);
+
+        const notificationsResponse = await getMentorNotifications(parseInt(mentorId));
+        setNotifications(notificationsResponse.data);
+        
+        // Also fetch project ideas for notification count if not already loaded
+        try {
+          const projectIdeasResponse = await getMentorProjectIdeas(parseInt(mentorId));
+          const newProjectsCount = (projectIdeasResponse.data || []).filter((project: any) => !project.mentor_review_notes).length;
+          setNotifications(prev => ({ ...prev, new_projects: newProjectsCount }));
+        } catch (projectErr) {
+          console.error('Error fetching project ideas for notifications:', projectErr);
+        }
 
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -214,8 +282,76 @@ export default function Mentees() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchData, 30000);
+    
+    // Add visibility change listener to pause polling when tab is not active
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchData(); // Refresh when tab becomes active
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [activeTab]);
+
+  // Separate useEffect for project ideas
+  useEffect(() => {
+    const getMentorId = () => {
+      let mentorId = localStorage.getItem('mentorId') ||
+                    localStorage.getItem('userId') ||
+                    localStorage.getItem('user_id');
+
+      if (!mentorId) {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          try {
+            const user = JSON.parse(userData);
+            mentorId = user.id || user.user_id;
+          } catch (e) {
+            console.error('Error parsing user data:', e);
+          }
+        }
+      }
+
+      return mentorId || '5';
+    };
+
+    const fetchProjectIdeas = async () => {
+      // Only fetch if page is visible
+      if (document.hidden) return;
+      
+      try {
+        const mentorId = getMentorId();
+        const projectIdeasResponse = await getMentorProjectIdeas(parseInt(mentorId));
+        setProjectIdeas(projectIdeasResponse.data || []);
+        
+        // Calculate new projects count
+        const newProjectsCount = (projectIdeasResponse.data || []).filter((project: any) => !project.mentor_review_notes).length;
+        setNotifications(prev => ({ ...prev, new_projects: newProjectsCount }));
+      } catch (err) {
+        console.error('Error fetching project ideas:', err);
+      }
+    };
+
+    fetchProjectIdeas();
+    const projectInterval = setInterval(fetchProjectIdeas, 60000);
+    
+    // Add visibility change listener for project ideas
+    const handleProjectVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchProjectIdeas();
+      }
+    };
+    document.addEventListener('visibilitychange', handleProjectVisibilityChange);
+    
+    return () => {
+      clearInterval(projectInterval);
+      document.removeEventListener('visibilitychange', handleProjectVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -304,6 +440,54 @@ export default function Mentees() {
     setShowFeedbackModal(true);
   };
 
+  const openProjectsModal = async (mentee: Mentee) => {
+    setSelectedMenteeForProjects(mentee);
+    try {
+      const response = await getUploadedProjects(parseInt(mentee.id));
+      setStudentProjects(response.data || []);
+      setShowProjectsModal(true);
+    } catch (error) {
+      console.error('Error fetching student projects:', error);
+      setStudentProjects([]);
+      setShowProjectsModal(true);
+    }
+  };
+
+  const openProjectFeedbackModal = (project: any) => {
+    setSelectedProjectForFeedback(project);
+    setProjectFeedbackForm({
+      feedback: project.mentor_feedback || '',
+      rating: project.rating || 0
+    });
+    setShowProjectFeedbackModal(true);
+  };
+
+  const submitProjectFeedbackHandler = async () => {
+    if (!selectedProjectForFeedback || !projectFeedbackForm.feedback.trim()) return;
+
+    try {
+      const mentorId = parseInt(localStorage.getItem('mentorId') || localStorage.getItem('userId') || '5');
+      
+      await submitProjectFeedback(selectedProjectForFeedback.id, {
+        mentor_id: mentorId,
+        feedback: projectFeedbackForm.feedback,
+        rating: projectFeedbackForm.rating || undefined
+      });
+
+      // Update the project in the list
+      setStudentProjects(prev => prev.map(p => 
+        p.id === selectedProjectForFeedback.id 
+          ? { ...p, mentor_feedback: projectFeedbackForm.feedback, rating: projectFeedbackForm.rating }
+          : p
+      ));
+
+      setShowProjectFeedbackModal(false);
+      setProjectFeedbackForm({ feedback: '', rating: 0 });
+    } catch (error) {
+      console.error('Error submitting project feedback:', error);
+    }
+  };
+
   const submitFeedback = async () => {
     if (!selectedMenteeForFeedback || feedbackForm.rating === 0) return;
 
@@ -326,6 +510,70 @@ export default function Mentees() {
       setFeedbackForm({ rating: 0, review: '' });
     } catch (err) {
       console.error('Error submitting mentor feedback:', err);
+    }
+  };
+
+  const openProjectModal = (project: any, action: 'approve' | 'reject' | 'review') => {
+    setSelectedProject(project);
+    setProjectAction(action);
+    setProjectForm({
+      literature_review_date: project.literature_review_date || '',
+      prototype_demo_date: project.prototype_demo_date || '',
+      mentor_review_notes: project.mentor_review_notes || ''
+    });
+    setShowProjectModal(true);
+  };
+
+  const handleProjectAction = async () => {
+    if (!selectedProject) return;
+
+    try {
+      const mentorId = parseInt(localStorage.getItem('mentorId') || localStorage.getItem('userId') || '5');
+      
+      await updateProjectStatus(selectedProject.id, {
+        mentor_id: mentorId,
+        action: projectAction,
+        literature_review_date: projectForm.literature_review_date || undefined,
+        prototype_demo_date: projectForm.prototype_demo_date || undefined,
+        mentor_review_notes: projectForm.mentor_review_notes
+      });
+
+      // Immediately refresh project ideas and notifications
+      console.log('Refreshing project ideas and notifications after action...');
+      const projectIdeasResponse = await getMentorProjectIdeas(mentorId);
+      console.log('Updated project ideas response:', projectIdeasResponse);
+      console.log('Updated project ideas data:', projectIdeasResponse.data);
+      setProjectIdeas(projectIdeasResponse.data || []);
+      
+      const notificationsResponse = await getMentorNotifications(mentorId);
+      console.log('Updated notifications:', notificationsResponse.data);
+      setNotifications(notificationsResponse.data);
+      
+      setShowProjectModal(false);
+      setSelectedProject(null);
+      setProjectForm({ literature_review_date: '', prototype_demo_date: '', mentor_review_notes: '' });
+    } catch (err) {
+      console.error('Error updating project status:', err);
+    }
+  };
+
+  const handleDirectReject = async (project: any) => {
+    try {
+      const mentorId = parseInt(localStorage.getItem('mentorId') || localStorage.getItem('userId') || '5');
+      
+      await updateProjectStatus(project.id, {
+        mentor_id: mentorId,
+        action: 'reject',
+        mentor_review_notes: 'Project rejected by mentor'
+      });
+
+      const projectIdeasResponse = await getMentorProjectIdeas(mentorId);
+      setProjectIdeas(projectIdeasResponse.data || []);
+      
+      const notificationsResponse = await getMentorNotifications(mentorId);
+      setNotifications(notificationsResponse.data);
+    } catch (err) {
+      console.error('Error rejecting project:', err);
     }
   };
 
@@ -364,8 +612,8 @@ export default function Mentees() {
       await updateRequestStatus(request.id, 'accepted');
       
       const newMentee: Mentee = {
-        id: request.student.toString(),
-        name: request.student_name,
+        id: request.student ? request.student.toString() : '',
+        name: request.student_name || 'Unknown',
         avatar: '/api/placeholder/80/80',
         email: request.email || '',
         university: request.university || 'Unknown University',
@@ -490,6 +738,12 @@ export default function Mentees() {
             <div className="text-2xl font-bold text-purple-600">{avgProgress}%</div>
             <div className="text-sm text-gray-500">Avg Progress</div>
           </div>
+          {notifications.new_projects > 0 && (
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600">{notifications.new_projects}</div>
+              <div className="text-sm text-gray-500">New Projects</div>
+            </div>
+          )}
           {pendingRequests > 0 && (
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">{pendingRequests}</div>
@@ -506,10 +760,18 @@ export default function Mentees() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="mentees">Mentees</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="goals">Goals</TabsTrigger>
+          <TabsTrigger value="projects" className="relative">
+            Project Ideas 
+            {projectIdeas.filter(p => !p.mentor_review_notes).length > 0 && (
+              <span className="ml-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold animate-pulse">
+                {projectIdeas.filter(p => !p.mentor_review_notes).length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="requests">Connection Requests {pendingRequests > 0 && <span className="text-red-600 font-bold">({pendingRequests})</span>}</TabsTrigger>
           <TabsTrigger value="booking">Booking Requests {pendingBookingRequests > 0 && <span className="text-red-600 font-bold">({pendingBookingRequests})</span>}</TabsTrigger>
         </TabsList>
@@ -553,7 +815,10 @@ export default function Mentees() {
                       <Avatar className="h-16 w-16 border-2 border-gray-200">
                         <AvatarImage src={mentee.avatar} />
                         <AvatarFallback className="bg-gray-600 text-white text-lg">
-                          {mentee.name && typeof mentee.name === 'string' ? mentee.name.split(' ').map((n: string) => n.charAt(0)).join('') : 'N/A'}
+                          {mentee.name && typeof mentee.name === 'string' && mentee.name.trim() ? 
+                            mentee.name.split(' ').filter((n: string) => n).map((n: string) => n.charAt(0)).join('').substring(0, 2) : 
+                            'NA'
+                          }
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
@@ -634,6 +899,16 @@ export default function Mentees() {
                     >
                       <Star className="w-4 h-4 mr-2" />
                       Feedback
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                      onClick={() => openProjectsModal(mentee)}
+                    >
+                      <FolderOpen className="w-4 h-4 mr-2" />
+                      Projects
                     </Button>
                   </div>
                 </CardContent>
@@ -743,6 +1018,159 @@ export default function Mentees() {
           <div className="text-center p-8 text-gray-500">No goals set yet</div>
         </TabsContent>
 
+        <TabsContent value="projects" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold text-gray-900">Project Ideas</h2>
+            <div className="text-sm text-gray-600">
+              {projectIdeas.length} project{projectIdeas.length !== 1 ? 's' : ''} assigned
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {projectIdeas.map((project) => (
+              <Card key={project.id} className="border-0 shadow-lg">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-gray-900 text-lg">{project.title}</h3>
+                        <Badge variant="outline">{project.category}</Badge>
+                        <Badge 
+                          variant="secondary"
+                          className={`${
+                            project.difficulty_level === 'Beginner' ? 'bg-green-100 text-green-800' :
+                            project.difficulty_level === 'Intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {project.difficulty_level}
+                        </Badge>
+                        {!project.mentor_review_notes && (
+                          <Badge className="bg-orange-500 text-white animate-pulse">
+                            NEW
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-gray-600 mb-3">{project.description}</p>
+                      <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
+                        <span className="flex items-center">
+                          <Clock className="w-4 h-4 mr-1" />
+                          {project.estimated_time || 'Not specified'}
+                        </span>
+                        <span className="flex items-center">
+                          <User className="w-4 h-4 mr-1" />
+                          {project.student.name}
+                        </span>
+                        <span>Submitted: {new Date(project.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {project.skills_involved && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium mb-2">Skills Involved:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {project.skills_involved.split(',').map((skill: string, idx: number) => (
+                          <Badge key={idx} variant="secondary" className="bg-blue-50 text-blue-700">
+                            {skill.trim()}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {project.mentor_review_notes ? (
+                    <div className="bg-gray-50 p-3 rounded-lg mb-4">
+                      <p className="text-sm font-medium text-gray-900 mb-1">Review Status:</p>
+                      <p className="text-sm text-gray-700">{project.mentor_review_notes}</p>
+                    </div>
+                  ) : (
+                    <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg mb-4">
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
+                        <p className="text-sm font-medium text-orange-800">New Project Request - Awaiting Review</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {(project.literature_review_date || project.prototype_demo_date) && (
+                    <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                      <p className="text-sm font-medium text-blue-900 mb-2">Project Timeline:</p>
+                      {project.literature_review_date && (
+                        <div className="flex items-center gap-2 text-sm text-blue-700 mb-1">
+                          <Calendar className="w-4 h-4" />
+                          Literature Review: {new Date(project.literature_review_date).toLocaleDateString()}
+                        </div>
+                      )}
+                      {project.prototype_demo_date && (
+                        <div className="flex items-center gap-2 text-sm text-blue-700">
+                          <Calendar className="w-4 h-4" />
+                          Prototype Demo: {new Date(project.prototype_demo_date).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex space-x-2">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => openProjectModal(project, 'approve')}
+                    >
+                      <ThumbsUp className="w-4 h-4 mr-2" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 border-red-600 hover:bg-red-50"
+                      onClick={() => handleDirectReject(project)}
+                    >
+                      <ThumbsDown className="w-4 h-4 mr-2" />
+                      Reject
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                      onClick={() => openProjectModal(project, 'review')}
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      Review
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {projectIdeas.length === 0 && (
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-12 text-center">
+                <Lightbulb className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No project ideas assigned</h3>
+                <p className="text-gray-600 mb-4">Students will send you project ideas for review and guidance.</p>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('http://localhost:8000/api/debug/project-ideas/');
+                      const data = await response.json();
+                      console.log('Debug project ideas:', data);
+                      alert(`Found ${data.total_projects} total projects in database`);
+                    } catch (error) {
+                      console.error('Debug error:', error);
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  Debug: Check All Projects
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         <TabsContent value="requests" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-semibold text-gray-900">Mentee Requests</h2>
@@ -760,7 +1188,10 @@ export default function Mentees() {
                       <Avatar className="h-16 w-16 border-2 border-gray-200">
                         <AvatarImage src={request.avatar || '/api/placeholder/80/80'} />
                         <AvatarFallback className="bg-gray-600 text-white text-lg">
-                          {request.student_name && typeof request.student_name === 'string' ? request.student_name.split(' ').map((n: string) => n.charAt(0)).join('') : 'N/A'}
+                          {request.student_name && typeof request.student_name === 'string' && request.student_name.trim() ? 
+                            request.student_name.split(' ').filter((n: string) => n).map((n: string) => n.charAt(0)).join('').substring(0, 2) : 
+                            'NA'
+                          }
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
@@ -844,7 +1275,10 @@ export default function Mentees() {
                       <Avatar className="h-16 w-16 border-2 border-gray-200">
                         <AvatarImage src={request.student_avatar || '/api/placeholder/80/80'} />
                         <AvatarFallback className="bg-gray-600 text-white text-lg">
-                          {request.student_name && typeof request.student_name === 'string' ? request.student_name.split(' ').map((n: string) => n.charAt(0)).join('') : 'N/A'}
+                          {request.student_name && typeof request.student_name === 'string' && request.student_name.trim() ? 
+                            request.student_name.split(' ').filter((n: string) => n).map((n: string) => n.charAt(0)).join('').substring(0, 2) : 
+                            'NA'
+                          }
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
@@ -1231,6 +1665,254 @@ export default function Mentees() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showProjectModal} onOpenChange={setShowProjectModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lightbulb className="w-5 h-5" />
+              {projectAction === 'approve' ? 'Approve' : projectAction === 'reject' ? 'Reject' : 'Review'} Project: {selectedProject?.title}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedProject && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium text-gray-900 mb-2">Project Details</h4>
+                <p className="text-sm text-gray-700 mb-2">{selectedProject.description}</p>
+                <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <span>Category: {selectedProject.category}</span>
+                  <span>Difficulty: {selectedProject.difficulty_level}</span>
+                  <span>Student: {selectedProject.student.name}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Literature Review Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={projectForm.literature_review_date}
+                    onChange={(e) => setProjectForm(prev => ({ ...prev, literature_review_date: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Prototype Demo Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={projectForm.prototype_demo_date}
+                    onChange={(e) => setProjectForm(prev => ({ ...prev, prototype_demo_date: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Review Notes
+                </label>
+                <Textarea
+                  rows={4}
+                  placeholder={`Add your ${projectAction} notes here...`}
+                  value={projectForm.mentor_review_notes}
+                  onChange={(e) => setProjectForm(prev => ({ ...prev, mentor_review_notes: e.target.value }))}
+                />
+              </div>
+
+              <div className="flex space-x-2 pt-4">
+                <Button
+                  className={`flex-1 ${
+                    projectAction === 'approve' ? 'bg-green-600 hover:bg-green-700' :
+                    projectAction === 'reject' ? 'bg-red-600 hover:bg-red-700' :
+                    'bg-blue-600 hover:bg-blue-700'
+                  } text-white`}
+                  onClick={handleProjectAction}
+                >
+                  {projectAction === 'approve' ? 'Approve Project' :
+                   projectAction === 'reject' ? 'Reject Project' :
+                   'Submit Review'}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowProjectModal(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showProjectsModal} onOpenChange={setShowProjectsModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderOpen className="w-5 h-5" />
+              {selectedMenteeForProjects?.name}'s Projects
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {studentProjects.length === 0 ? (
+              <div className="text-center py-8">
+                <FolderOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No projects uploaded</h3>
+                <p className="text-gray-600">This student hasn't uploaded any projects yet.</p>
+              </div>
+            ) : (
+              studentProjects.map((project) => (
+                <Card key={project.id} className="border-0 shadow-lg">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-semibold text-gray-900 text-lg">{project.title}</h3>
+                          <Badge variant="outline">{project.category}</Badge>
+                          <Badge 
+                            variant="secondary" 
+                            className={`${
+                              project.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
+                              project.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {project.status}
+                          </Badge>
+                          {project.rating && (
+                            <Badge className="bg-purple-100 text-purple-800">
+                              ★ {project.rating}/5
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-gray-600 mb-3">{project.description}</p>
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                          <span>Uploaded: {new Date(project.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {project.technologies.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-sm font-medium mb-2">Technologies:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {project.technologies.map((tech: string, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="bg-blue-50 text-blue-700">
+                              {tech.trim()}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {project.additional_notes && (
+                      <div className="mb-4">
+                        <p className="text-sm font-medium mb-2">Additional Notes:</p>
+                        <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">{project.additional_notes}</p>
+                      </div>
+                    )}
+
+                    {project.mentor_feedback && (
+                      <div className="mb-4">
+                        <p className="text-sm font-medium mb-2">Your Feedback:</p>
+                        <p className="text-sm text-gray-700 bg-green-50 p-3 rounded-lg border border-green-200">{project.mentor_feedback}</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 flex-wrap">
+                      <Button variant="outline" onClick={() => window.open(project.github_url, '_blank')}>
+                        <Github className="w-4 h-4 mr-2" />
+                        View Code
+                      </Button>
+                      {project.live_url && (
+                        <Button variant="outline" onClick={() => window.open(project.live_url, '_blank')}>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Live Demo
+                        </Button>
+                      )}
+                      <Button 
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                        onClick={() => openProjectFeedbackModal(project)}
+                      >
+                        <Star className="w-4 h-4 mr-2" />
+                        {project.mentor_feedback ? 'Update Feedback' : 'Give Feedback'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showProjectFeedbackModal} onOpenChange={setShowProjectFeedbackModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-purple-600" />
+              Project Feedback: {selectedProjectForFeedback?.title}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Project Details</h4>
+              <p className="text-sm text-gray-700 mb-2">{selectedProjectForFeedback?.description}</p>
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <span>Category: {selectedProjectForFeedback?.category}</span>
+                <span>Uploaded: {selectedProjectForFeedback?.created_at ? new Date(selectedProjectForFeedback.created_at).toLocaleDateString() : ''}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <label className="mb-2 text-sm font-medium text-gray-700">
+                Rating (Optional)
+              </label>
+              <StarRating
+                rating={projectFeedbackForm.rating}
+                onChange={(v) => setProjectFeedbackForm(p => ({ ...p, rating: v }))}
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                {projectFeedbackForm.rating} / 5 stars
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Feedback *
+              </label>
+              <Textarea
+                rows={4}
+                placeholder="Provide detailed feedback on the project..."
+                value={projectFeedbackForm.feedback}
+                onChange={(e) => setProjectFeedbackForm(p => ({ ...p, feedback: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex space-x-2 pt-4">
+              <Button
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                onClick={submitProjectFeedbackHandler}
+                disabled={!projectFeedbackForm.feedback.trim()}
+              >
+                Submit Feedback
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowProjectFeedbackModal(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

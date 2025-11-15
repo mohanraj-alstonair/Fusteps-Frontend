@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './use-auth';
-import { listMessages, getStudentSessions, listMentorRequests, getMentorBookingRequests } from '../lib/api';
+import { listMessages, getStudentSessions, listMentorRequests, getMentorBookingRequests, getMentorProjectIdeas, getProjectIdeas } from '../lib/api';
 
 interface NotificationItem {
   id: string;
-  type: 'message' | 'session' | 'booking' | 'connection';
+  type: 'message' | 'session' | 'booking' | 'connection' | 'project';
   title: string;
   description: string;
   unread?: boolean;
@@ -80,6 +80,51 @@ export function useNotifications() {
             }
           });
 
+          // Fetch project status updates
+          const projects = await getProjectIdeas(userId);
+          const reviewedProjects = projects.data.filter((project: any) => 
+            project.mentor_review_notes && project.mentor_review_notes.trim() !== ''
+          );
+          
+          reviewedProjects.forEach((project: any) => {
+            const projectId = `projectStatus${project.id}`;
+            if (!readNotifications.includes(projectId)) {
+              // Determine if project is approved or rejected based on mentor_review_notes
+              const reviewNotes = project.mentor_review_notes.toLowerCase();
+              let status = 'Reviewed';
+              let isApproved = false;
+              
+              if (reviewNotes.includes('approved')) {
+                status = 'Approved';
+                isApproved = true;
+              } else if (reviewNotes.includes('rejected')) {
+                status = 'Rejected';
+                isApproved = false;
+              } else if (reviewNotes.includes('under review')) {
+                status = 'Under Review';
+              }
+              
+              // Extract the actual review message (remove status prefix if present)
+              let reviewMessage = project.mentor_review_notes;
+              const prefixes = ['APPROVED:', 'REJECTED:', 'UNDER REVIEW:'];
+              for (const prefix of prefixes) {
+                if (reviewMessage.toUpperCase().startsWith(prefix)) {
+                  reviewMessage = reviewMessage.substring(prefix.length).trim();
+                  break;
+                }
+              }
+              
+              items.push({
+                id: projectId,
+                type: 'project',
+                title: `Project ${status}`,
+                description: `${project.title}${reviewMessage ? ' - ' + reviewMessage : ''}`,
+                unread: true
+              });
+              count += 1;
+            }
+          });
+
         } else if (user.role === 'mentor') {
           // Fetch unseen messages for mentors
           const messages = await listMessages(userId, 0); // Adjust as needed
@@ -128,6 +173,23 @@ export function useNotifications() {
                 type: 'connection',
                 title: 'Connection Request',
                 description: `From ${conn.student_name}`,
+                unread: true
+              });
+              count += 1;
+            }
+          });
+
+          // Fetch project ideas
+          const projectIdeas = await getMentorProjectIdeas(userId);
+          const newProjectIdeas = projectIdeas.data.filter((project: any) => !project.mentor_review_notes);
+          newProjectIdeas.forEach((project: any) => {
+            const projectId = `project${project.id}`;
+            if (!readNotifications.includes(projectId)) {
+              items.push({
+                id: projectId,
+                type: 'project',
+                title: 'New Project Idea',
+                description: `${project.title} from ${project.student.name}`,
                 unread: true
               });
               count += 1;

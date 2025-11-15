@@ -1,5 +1,5 @@
-import { Switch, Route, useLocation, useRoute } from "wouter";
-import { Calendar, BookOpen, Users, FolderOpen, Library as LibraryIcon, Globe, Settings as SettingsIcon, User, Award, Briefcase, Brain } from "lucide-react";
+import { Switch, Route, useLocation } from "wouter";
+import { Calendar, BookOpen, Users, FolderOpen, Library as LibraryIcon, Globe, User, Award, Briefcase, Brain } from "lucide-react";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import Internships from "./Internships";
 import Courses from "./Courses";
@@ -11,7 +11,7 @@ import JobTools from "./JobTools";
 import Notifications from "./Notifications";
 import Profile from "./Profile";
 import StudentSettings from "./Settings";
-import Skills from "./Skills";
+
 import { CalendarModal } from "../../components/ui/CalendarModal";
 import { useState, useEffect } from "react";
 
@@ -20,22 +20,22 @@ const menuItems = [
   { id: 'internships', label: 'Internships', icon: <BookOpen />, path: '/dashboard/student/internships' },
   { id: 'job-tools', label: 'Jobs & Career', icon: <Briefcase />, path: '/dashboard/student/job-tools' },
   { id: 'courses', label: '🚀 Courses & AI Skills', icon: <Brain />, path: '/dashboard/student/courses' },
-  { id: 'skills', label: '🎯 Skills Management', icon: <Award />, path: '/dashboard/student/skills' },
+
   { id: 'mentors', label: 'Mentors', icon: <Users />, path: '/dashboard/student/mentors' },
   { id: 'projects', label: 'Projects', icon: <FolderOpen />, path: '/dashboard/student/projects' },
   { id: 'library', label: 'Library', icon: <LibraryIcon />, path: '/dashboard/student/library' },
   { id: 'study-abroad', label: 'Study Abroad', icon: <Globe />, path: '/dashboard/student/study-abroad' },
 ];
 
-function StudentOverview({ userData }) {
+function StudentOverview({ userData }: { userData: any }) {
   const [, setLocation] = useLocation();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [recentApplications, setRecentApplications] = useState([
+  const [recentApplications] = useState([
     { title: 'Frontend Developer', company: 'TechCorp Inc.', status: 'In Review', statusColor: 'sun' },
     { title: 'UX Designer Intern', company: 'Design Studio', status: 'Interview', statusColor: 'leaf' },
     { title: 'Data Analyst', company: 'FinanceMax', status: 'Rejected', statusColor: 'ember' }
   ]);
-  const [upcomingEvents, setUpcomingEvents] = useState([
+  const [upcomingEvents] = useState([
     { title: 'Career Fair 2024', from: new Date('2024-04-15T10:00:00'), to: new Date('2024-04-15T12:00:00') },
     { title: 'Mentoring Session', from: new Date('2024-04-18T14:00:00'), to: new Date('2024-04-18T15:00:00') },
     { title: 'React Workshop', from: new Date('2024-04-22T18:00:00'), to: new Date('2024-04-22T20:00:00') }
@@ -264,11 +264,7 @@ export default function StudentDashboard() {
     fetchUserData();
   }, []);
 
-  const getCurrentPage = (path: string) => {
-    if (path === '/dashboard/student' || path === '/dashboard/student/') return 'overview';
-    const segments = path.split('/');
-    return segments[segments.length - 1] || 'overview';
-  };
+
   
   console.log('StudentDashboard - Current location:', location);
 
@@ -364,16 +360,7 @@ export default function StudentDashboard() {
           <Profile />
         </DashboardLayout>
       </Route>
-      <Route path="/dashboard/student/skills">
-        <DashboardLayout
-          title="Skills Management"
-          subtitle="Student Dashboard"
-          menuItems={menuItems}
-          currentPage="skills"
-        >
-          <Skills />
-        </DashboardLayout>
-      </Route>
+
       <Route path="/dashboard/student/settings">
         <DashboardLayout
           title="Account Settings"

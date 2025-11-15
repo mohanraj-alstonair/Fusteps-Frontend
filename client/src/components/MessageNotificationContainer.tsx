@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useSimpleNotifications } from '../hooks/use-simple-notifications';
 import MessageNotification from './MessageNotification';
@@ -8,7 +8,7 @@ interface NotificationData {
   id: number;
   sender_id: string;
   sender_name: string;
-  sender_type: string;
+  sender_type: 'student' | 'mentor';
   content: string;
   timestamp: string;
   receiver_id: string;

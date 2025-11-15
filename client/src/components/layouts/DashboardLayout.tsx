@@ -1,6 +1,6 @@
 
-import React, { ReactNode, useState } from 'react';
-import { Menu, X, LogOut, Bell, Settings, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ReactNode, useState } from 'react';
+import { Menu, X, LogOut, Bell, Settings, User, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';
 import { useAuth } from '../../hooks/use-auth';
 import { useNotifications } from '../../hooks/use-notifications';
 import { useLocation } from 'wouter';
@@ -22,7 +22,7 @@ interface DashboardLayoutProps {
   currentPage: string;
 }
 
-export default function DashboardLayout({ children, title, subtitle, menuItems, currentPage }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, subtitle, menuItems, currentPage }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -30,10 +30,10 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
   console.log('DashboardLayout - currentPage:', currentPage);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
-  const [autoCloseTimer, setAutoCloseTimer] = useState<NodeJS.Timeout | null>(null);
+  const [autoCloseTimer, setAutoCloseTimer] = useState<number | null>(null);
   const { logout, user } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
 
   const handleMenuClick = (path: string) => {
     setLocation(path);
@@ -204,7 +204,7 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
                         const timer = setTimeout(() => {
                           setShowNotificationsDropdown(false);
                         }, 15000); // 15 seconds
-                        setAutoCloseTimer(timer);
+                        setAutoCloseTimer(timer as unknown as number);
                       } else {
                         // Closing dropdown - clear timer
                         if (autoCloseTimer) {
@@ -239,6 +239,13 @@ export default function DashboardLayout({ children, title, subtitle, menuItems, 
                                 {notification.type === 'session' && <User className="w-4 h-4 text-green-500" />}
                                 {notification.type === 'booking' && <Settings className="w-4 h-4 text-orange-500" />}
                                 {notification.type === 'connection' && <User className="w-4 h-4 text-purple-500" />}
+                                {notification.type === 'project' && (
+                                  <Lightbulb className={`w-4 h-4 ${
+                                    notification.title.includes('Approved') ? 'text-green-500' :
+                                    notification.title.includes('Rejected') ? 'text-red-500' :
+                                    'text-indigo-500'
+                                  }`} />
+                                )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-ink-900">{notification.title}</p>

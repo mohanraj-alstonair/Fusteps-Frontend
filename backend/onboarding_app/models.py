@@ -77,11 +77,25 @@ class Candidate(models.Model):
     resume_file = models.BinaryField(null=True, blank=True)
     resume_filename = models.CharField(max_length=255, null=True, blank=True)
     
+    # Additional fields for comprehensive profile
+    skills_json = models.JSONField(null=True, blank=True, help_text='JSON array of skills')
+    career_goals = models.TextField(blank=True, help_text='Career goals and objectives')
+    linkedin_profile = models.URLField(blank=True, help_text='LinkedIn profile URL')
+    portfolio_url = models.URLField(blank=True, help_text='Portfolio website URL')
+    cgpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True, help_text='CGPA or percentage')
+    status = models.CharField(max_length=20, choices=[
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('suspended', 'Suspended'),
+    ], default='active')
+    verified = models.BooleanField(default=False, help_text='Profile verification status')
+    last_login = models.DateTimeField(null=True, blank=True)
+    join_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    department = models.CharField(max_length=200, blank=True, help_text='Academic department')
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
-    
-
     
     # Legacy fields for backward compatibility
     phone = models.CharField(max_length=20, null=True, blank=True)
@@ -180,6 +194,14 @@ class ProjectIdea(models.Model):
         ('Game Development', 'Game Development'),
         ('Other', 'Other'),
     ]
+    
+    STATUS_CHOICES = [
+        ('idea', 'Idea'),
+        ('uploaded', 'Uploaded Project'),
+        ('under_review', 'Under Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
 
     id = models.AutoField(primary_key=True)
     student = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='project_ideas', limit_choices_to={'role': 'student'})
@@ -189,6 +211,21 @@ class ProjectIdea(models.Model):
     difficulty_level = models.CharField(max_length=50, choices=DIFFICULTY_CHOICES, default='Intermediate')
     skills_involved = models.TextField(blank=True)
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES, default='Web Development')
+    
+    # Project upload fields
+    project_type = models.CharField(max_length=20, choices=STATUS_CHOICES, default='idea')
+    technologies = models.TextField(blank=True)
+    github_url = models.URLField(blank=True, null=True)
+    live_url = models.URLField(blank=True, null=True)
+    additional_notes = models.TextField(blank=True)
+    
+    # Mentor collaboration fields
+    assigned_mentor = models.ForeignKey(Candidate, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_projects', limit_choices_to={'role': 'mentor'})
+    literature_review_date = models.DateField(null=True, blank=True)
+    prototype_demo_date = models.DateField(null=True, blank=True)
+    mentor_review_notes = models.TextField(blank=True)
+    rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -229,6 +266,8 @@ class BookedSession(models.Model):
     class Meta:
         db_table = 'booked_sessions'
         ordering = ['-created_at']
+
+
 
 
 

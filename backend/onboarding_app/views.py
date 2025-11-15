@@ -43,7 +43,7 @@ def onboarding(request):
         year_of_passout = data.get('year_of_passout')
         degree = data.get('degree', '')
         cgpa = data.get('cgpa', '')
-        skills = data.get('skills', '')
+        skills = data.get('skills', [])
         career_goals = data.get('careerGoals', '')
         linkedin = data.get('linkedIn', '')
         portfolio = data.get('portfolio', '')
@@ -52,8 +52,16 @@ def onboarding(request):
         skills_list = []
         if skills:
             try:
-                skills_list = json.loads(skills) if isinstance(skills, str) else skills
-            except:
+                if isinstance(skills, str):
+                    skills_list = json.loads(skills) if skills.strip() else []
+                elif isinstance(skills, list):
+                    skills_list = skills
+                else:
+                    skills_list = []
+            except json.JSONDecodeError:
+                # If it's not valid JSON, treat as comma-separated string
+                skills_list = [s.strip() for s in str(skills).split(',') if s.strip()]
+            except Exception:
                 skills_list = []
 
         if not all([phone, year_of_passout]):
@@ -88,6 +96,19 @@ def onboarding(request):
             candidate.degree = degree
             candidate.onboarding_completed = True  # Mark onboarding as complete
             
+            # Store additional fields
+            candidate.skills_json = skills_list
+            candidate.career_goals = career_goals
+            candidate.linkedin_profile = linkedin
+            candidate.portfolio_url = portfolio
+            
+            # Handle CGPA
+            if cgpa:
+                try:
+                    candidate.cgpa = float(cgpa)
+                except (ValueError, TypeError):
+                    pass
+            
             if resume_file_content:
                 candidate.resume_file = resume_file_content
                 candidate.resume_filename = resume_filename
@@ -95,24 +116,28 @@ def onboarding(request):
             candidate.save()
             
             # Handle skills through UserSkill model (with error handling)
-            try:
-                UserSkill.objects.filter(user=candidate).delete()  # Clear existing
-                for skill_name in skills_list:
-                    if skill_name.strip():
-                        skill, created = Skill.objects.get_or_create(
-                            name=skill_name.strip(),
-                            defaults={'category': 'PROGRAMMING'}
-                        )
-                        UserSkill.objects.create(
-                            user=candidate, 
-                            skill=skill, 
-                            proficiency='BEGINNER',
-                            years_of_experience=0.0,
-                            is_certified=False,
-                            is_verified=False  # Just claimed during onboarding
-                        )
-            except Exception as skill_error:
-                logger.warning(f"Error handling skills: {str(skill_error)}")
+            if skills_list:
+                try:
+                    from skills_management.models import Skill, UserSkill
+                    UserSkill.objects.filter(user=candidate).delete()  # Clear existing
+                    for skill_name in skills_list:
+                        if skill_name and skill_name.strip():
+                            skill, created = Skill.objects.get_or_create(
+                                name=skill_name.strip(),
+                                defaults={'category': 'PROGRAMMING'}
+                            )
+                            UserSkill.objects.create(
+                                user=candidate, 
+                                skill=skill, 
+                                proficiency='BEGINNER',
+                                years_of_experience=0.0,
+                                is_certified=False,
+                                is_verified=False
+                            )
+                    logger.info(f"Successfully stored {len(skills_list)} skills for user {candidate.id}")
+                except Exception as skill_error:
+                    logger.warning(f"Error handling skills: {str(skill_error)}")
+                    # Continue without failing the entire onboarding
 
             return JsonResponse({
                 'message': 'Onboarding completed successfully',
@@ -157,15 +182,15 @@ def get_user_profile(request, user_id):
         # Build comprehensive profile data
         profile_data = {
             'id': candidate.id,
-            'name': candidate.name or '',
+            'name': candidate.name or candidate.full_name or '',
             'email': candidate.email or '',
-            'phone': candidate.phone or '',
+            'phone': candidate.phone or candidate.mobile_number or '',
             'role': candidate.role or '',
-            'university': candidate.university or '',
-            'field_of_study': candidate.field_of_study or '',
-            'degree': candidate.degree or '',
-            'year_of_passout': candidate.year_of_passout,
-            'location': candidate.location or '',
+            'university': candidate.university or candidate.university_institute or '',
+            'field_of_study': candidate.field_of_study or candidate.specialization or '',
+            'degree': candidate.degree or candidate.highest_qualification or '',
+            'year_of_passout': candidate.year_of_passout or candidate.passing_year,
+            'location': candidate.location or candidate.current_city or '',
             'company_name': candidate.company_name or '',
             'expertise': candidate.expertise or '',
             'experience': candidate.experience or 0,
@@ -173,9 +198,19 @@ def get_user_profile(request, user_id):
             'mentor_role': candidate.mentor_role or '',
             'employer_role': candidate.employer_role or '',
             'skills': user_skills,
+            'skills_json': getattr(candidate, 'skills_json', []),
+            'career_goals': getattr(candidate, 'career_goals', ''),
+            'linkedin_profile': getattr(candidate, 'linkedin_profile', ''),
+            'portfolio_url': getattr(candidate, 'portfolio_url', ''),
+            'cgpa': float(candidate.cgpa) if getattr(candidate, 'cgpa', None) else None,
+            'status': getattr(candidate, 'status', 'active'),
+            'verified': getattr(candidate, 'verified', False),
+            'department': getattr(candidate, 'department', ''),
             'has_resume': bool(candidate.resume_file),
             'resume_filename': candidate.resume_filename or '',
-            'created_at': candidate.id,  # Using ID as creation indicator
+            'created_at': candidate.created_at.isoformat() if candidate.created_at else '',
+            'join_date': candidate.join_date.isoformat() if getattr(candidate, 'join_date', None) else '',
+            'last_login': candidate.last_login.isoformat() if getattr(candidate, 'last_login', None) else '',
             'profile_completion': calculate_profile_completion(candidate, user_skills)
         }
         
@@ -2229,21 +2264,50 @@ def get_project_ideas(request):
         except (Candidate.DoesNotExist, ValueError):
             return JsonResponse({'error': 'Student not found'}, status=404)
 
-        # Get project ideas from project_ideas table
-        project_ideas = ProjectIdea.objects.filter(student=student).order_by('-created_at')
-        
-        ideas_list = []
-        for idea in project_ideas:
-            ideas_list.append({
-                'id': idea.id,
-                'title': idea.title,
-                'description': idea.description,
-                'estimated_time': idea.estimated_time,
-                'difficulty_level': idea.difficulty_level,
-                'skills_involved': idea.skills_involved,
-                'category': idea.category,
-                'created_at': idea.created_at.isoformat()
-            })
+        # Get project ideas from project_ideas table using raw SQL
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT p.id, p.title, p.description, p.estimated_time, p.difficulty_level, 
+                       p.skills_involved, p.category, p.created_at,
+                       COALESCE(p.assigned_mentor_id, 0) as assigned_mentor_id,
+                       COALESCE(p.literature_review_date, '') as literature_review_date,
+                       COALESCE(p.prototype_demo_date, '') as prototype_demo_date,
+                       COALESCE(p.mentor_review_notes, '') as mentor_review_notes,
+                       COALESCE(c.name, '') as mentor_name,
+                       COALESCE(c.email, '') as mentor_email
+                FROM project_ideas p
+                LEFT JOIN candidate c ON p.assigned_mentor_id = c.id
+                WHERE p.student_id = %s
+                ORDER BY p.created_at DESC
+            """, [student.id])
+            
+            ideas_list = []
+            for row in cursor.fetchall():
+                idea_data = {
+                    'id': row[0],
+                    'title': row[1],
+                    'description': row[2],
+                    'estimated_time': row[3] or '',
+                    'difficulty_level': row[4] or 'Intermediate',
+                    'skills_involved': row[5] or '',
+                    'category': row[6] or 'Web Development',
+                    'created_at': row[7].isoformat() if row[7] else '',
+                    'literature_review_date': row[9] if row[9] else None,
+                    'prototype_demo_date': row[10] if row[10] else None,
+                    'mentor_review_notes': row[11] or ''
+                }
+                
+                if row[8] and row[8] > 0:  # assigned_mentor_id
+                    idea_data['assigned_mentor'] = {
+                        'id': row[8],
+                        'name': row[12] or '',
+                        'email': row[13] or ''
+                    }
+                else:
+                    idea_data['assigned_mentor'] = None
+                    
+                ideas_list.append(idea_data)
 
         return JsonResponse(ideas_list, safe=False)
 
@@ -2334,23 +2398,112 @@ def update_project_idea(request, project_id):
         project_idea.difficulty_level = data.get('difficulty_level', project_idea.difficulty_level)
         project_idea.skills_involved = data.get('skills_involved', project_idea.skills_involved)
         project_idea.category = data.get('category', project_idea.category)
+        
+        # Update mentor collaboration fields if provided
+        if 'literature_review_date' in data and data['literature_review_date']:
+            from django.utils.dateparse import parse_date
+            project_idea.literature_review_date = parse_date(data['literature_review_date'])
+        
+        if 'prototype_demo_date' in data and data['prototype_demo_date']:
+            from django.utils.dateparse import parse_date
+            project_idea.prototype_demo_date = parse_date(data['prototype_demo_date'])
+            
+        if 'mentor_review_notes' in data:
+            project_idea.mentor_review_notes = data['mentor_review_notes']
+            
+        if 'assigned_mentor_id' in data and data['assigned_mentor_id']:
+            try:
+                mentor = Candidate.objects.get(id=data['assigned_mentor_id'], role='mentor')
+                project_idea.assigned_mentor = mentor
+            except Candidate.DoesNotExist:
+                pass
+        
         project_idea.save()
 
+        response_data = {
+            'id': project_idea.id,
+            'title': project_idea.title,
+            'description': project_idea.description,
+            'estimated_time': project_idea.estimated_time,
+            'difficulty_level': project_idea.difficulty_level,
+            'skills_involved': project_idea.skills_involved,
+            'category': project_idea.category,
+            'literature_review_date': project_idea.literature_review_date.isoformat() if project_idea.literature_review_date else None,
+            'prototype_demo_date': project_idea.prototype_demo_date.isoformat() if project_idea.prototype_demo_date else None,
+            'mentor_review_notes': project_idea.mentor_review_notes
+        }
+        
+        if project_idea.assigned_mentor:
+            response_data['assigned_mentor'] = {
+                'id': project_idea.assigned_mentor.id,
+                'name': project_idea.assigned_mentor.name,
+                'email': project_idea.assigned_mentor.email
+            }
+        else:
+            response_data['assigned_mentor'] = None
+        
         return JsonResponse({
             'message': 'Project idea updated successfully',
-            'project_idea': {
-                'id': project_idea.id,
-                'title': project_idea.title,
-                'description': project_idea.description,
-                'estimated_time': project_idea.estimated_time,
-                'difficulty_level': project_idea.difficulty_level,
-                'skills_involved': project_idea.skills_involved,
-                'category': project_idea.category
-            }
+            'project_idea': response_data
         })
 
     except Exception as e:
         logger.error(f"Error updating project idea: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def send_project_to_mentor(request, project_id):
+    """Send a project idea to a specific mentor"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        mentor_id = data.get('mentor_id')
+        literature_review_date = data.get('literature_review_date')
+        prototype_demo_date = data.get('prototype_demo_date')
+        mentor_review_notes = data.get('mentor_review_notes', '')
+        student_id = data.get('student_id')
+
+        if not all([mentor_id, student_id]):
+            return JsonResponse({'error': 'mentor_id and student_id are required'}, status=400)
+
+        try:
+            student = Candidate.objects.get(id=int(student_id), role='student')
+            mentor = Candidate.objects.get(id=int(mentor_id), role='mentor')
+        except (Candidate.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Invalid student or mentor ID'}, status=404)
+
+        # Get project idea and update it
+        try:
+            project_idea = ProjectIdea.objects.get(id=project_id, student=student)
+        except ProjectIdea.DoesNotExist:
+            return JsonResponse({'error': 'Project idea not found'}, status=404)
+        
+        # Assign mentor to project
+        project_idea.assigned_mentor = mentor
+        if mentor_review_notes:
+            project_idea.mentor_review_notes = mentor_review_notes
+        if literature_review_date:
+            from django.utils.dateparse import parse_date
+            project_idea.literature_review_date = parse_date(literature_review_date)
+        if prototype_demo_date:
+            from django.utils.dateparse import parse_date
+            project_idea.prototype_demo_date = parse_date(prototype_demo_date)
+        
+        project_idea.save()
+        
+        logger.info(f"Project {project_id} assigned to mentor {mentor.name} (ID: {mentor.id})")
+
+        return JsonResponse({
+            'message': 'Project sent to mentor successfully',
+            'project_id': project_id,
+            'mentor_name': mentor.name,
+            'student_name': student.name
+        })
+
+    except Exception as e:
+        logger.error(f"Error sending project to mentor: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 @csrf_exempt
@@ -2394,4 +2547,362 @@ def add_user_skill(request, user_id):
     except Candidate.DoesNotExist:
         return JsonResponse({'error': 'User not found'}, status=404)
     except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_mentor_project_ideas(request):
+    """Get project ideas from mentees (students with accepted connections) for a specific mentor"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'GET required'}, status=405)
+
+    try:
+        mentor_id = request.GET.get('mentor_id')
+        if not mentor_id:
+            return JsonResponse({'error': 'mentor_id parameter required'}, status=400)
+
+        logger.info(f"Fetching project ideas for mentor_id: {mentor_id}")
+
+        # Validate mentor exists
+        try:
+            mentor = Candidate.objects.get(id=int(mentor_id), role='mentor')
+            logger.info(f"Found mentor: {mentor.name}")
+        except (Candidate.DoesNotExist, ValueError):
+            logger.error(f"Mentor not found with id: {mentor_id}")
+            return JsonResponse({'error': 'Mentor not found'}, status=404)
+
+        # Get project ideas assigned to this mentor (only 'idea' type, not uploaded projects)
+        project_ideas = ProjectIdea.objects.filter(assigned_mentor_id=mentor_id, project_type='idea').select_related('student')
+        logger.info(f"Found {project_ideas.count()} project ideas for mentor {mentor_id}")
+        
+        ideas_list = []
+        for project in project_ideas:
+            idea_data = {
+                'id': project.id,
+                'title': project.title,
+                'description': project.description,
+                'estimated_time': project.estimated_time or '',
+                'difficulty_level': project.difficulty_level or 'Intermediate',
+                'skills_involved': project.skills_involved or '',
+                'category': project.category or 'Web Development',
+                'created_at': project.created_at.isoformat() if project.created_at else '',
+                'literature_review_date': project.literature_review_date.isoformat() if project.literature_review_date else None,
+                'prototype_demo_date': project.prototype_demo_date.isoformat() if project.prototype_demo_date else None,
+                'mentor_review_notes': project.mentor_review_notes or '',
+                'student': {
+                    'id': project.student.id,
+                    'name': project.student.name or '',
+                    'email': project.student.email or ''
+                }
+            }
+            ideas_list.append(idea_data)
+            logger.info(f"Added project: {project.title} from student {project.student.name}")
+
+        logger.info(f"Returning {len(ideas_list)} project ideas")
+        return JsonResponse(ideas_list, safe=False)
+
+    except Exception as e:
+        logger.error(f"Error getting mentor project ideas: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def update_project_status(request, project_id):
+    """Update project idea status (approve, reject, review)"""
+    if request.method != 'PATCH':
+        return JsonResponse({'error': 'PATCH required'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        mentor_id = data.get('mentor_id')
+        action = data.get('action')  # 'approve', 'reject', 'review'
+        literature_review_date = data.get('literature_review_date')
+        prototype_demo_date = data.get('prototype_demo_date')
+        mentor_review_notes = data.get('mentor_review_notes', '')
+
+        if not all([mentor_id, action]):
+            return JsonResponse({'error': 'mentor_id and action are required'}, status=400)
+
+        if action not in ['approve', 'reject', 'review']:
+            return JsonResponse({'error': 'action must be approve, reject, or review'}, status=400)
+
+        try:
+            mentor = Candidate.objects.get(id=int(mentor_id), role='mentor')
+        except (Candidate.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Mentor not found'}, status=404)
+
+        # Update project using raw SQL
+        from django.db import connection
+        with connection.cursor() as cursor:
+            # First check if project exists and is assigned to this mentor
+            cursor.execute(
+                "SELECT id, student_id FROM project_ideas WHERE id = %s AND assigned_mentor_id = %s",
+                [project_id, mentor_id]
+            )
+            result = cursor.fetchone()
+            if not result:
+                return JsonResponse({'error': 'Project idea not found or not assigned to this mentor'}, status=404)
+            
+            student_id = result[1]
+            
+            # Update project with mentor action and notes
+            update_fields = []
+            update_params = []
+            
+            # Set review notes based on action
+            if action == 'approve':
+                review_notes = f"APPROVED: {mentor_review_notes}" if mentor_review_notes else "APPROVED by mentor"
+            elif action == 'reject':
+                review_notes = f"REJECTED: {mentor_review_notes}" if mentor_review_notes else "REJECTED by mentor"
+            else:  # review
+                review_notes = f"UNDER REVIEW: {mentor_review_notes}" if mentor_review_notes else "Under review by mentor"
+            
+            update_fields.append("mentor_review_notes = %s")
+            update_params.append(review_notes)
+            
+            if literature_review_date:
+                update_fields.append("literature_review_date = %s")
+                update_params.append(literature_review_date)
+            
+            if prototype_demo_date:
+                update_fields.append("prototype_demo_date = %s")
+                update_params.append(prototype_demo_date)
+            
+            if update_fields:
+                update_sql = f"UPDATE project_ideas SET {', '.join(update_fields)} WHERE id = %s"
+                update_params.append(project_id)
+                cursor.execute(update_sql, update_params)
+
+        return JsonResponse({
+            'message': f'Project {action}d successfully',
+            'project_id': project_id,
+            'action': action,
+            'mentor_name': mentor.name
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating project status: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+@csrf_exempt
+def debug_project_ideas(request):
+    """Debug endpoint to check all project ideas"""
+    try:
+        all_projects = ProjectIdea.objects.all().select_related('student', 'assigned_mentor')
+        debug_data = []
+        for project in all_projects:
+            debug_data.append({
+                'id': project.id,
+                'title': project.title,
+                'student_id': project.student.id,
+                'student_name': project.student.name,
+                'assigned_mentor_id': project.assigned_mentor.id if project.assigned_mentor else None,
+                'assigned_mentor_name': project.assigned_mentor.name if project.assigned_mentor else None,
+                'created_at': project.created_at.isoformat()
+            })
+        return JsonResponse({
+            'total_projects': len(debug_data),
+            'projects': debug_data
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def upload_project(request):
+    """Upload a new project"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        user_id = data.get('user_id')
+        title = data.get('title')
+        description = data.get('description')
+        github_url = data.get('github_url')
+
+        if not all([user_id, title, description, github_url]):
+            return JsonResponse({'error': 'user_id, title, description and github_url are required'}, status=400)
+
+        try:
+            student = Candidate.objects.get(id=int(user_id), role='student')
+        except (Candidate.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Student not found'}, status=404)
+
+        project = ProjectIdea.objects.create(
+            student=student,
+            title=title,
+            description=description,
+            category=data.get('category', 'Web Development'),
+            technologies=data.get('technologies', ''),
+            github_url=github_url,
+            live_url=data.get('live_url', ''),
+            additional_notes=data.get('additional_notes', ''),
+            project_type='uploaded'
+        )
+
+        return JsonResponse({
+            'message': 'Project uploaded successfully',
+            'project_id': project.id
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_uploaded_projects(request):
+    """Get uploaded projects for a student"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'GET required'}, status=405)
+
+    try:
+        user_id = request.GET.get('user_id')
+        if not user_id:
+            return JsonResponse({'error': 'user_id parameter required'}, status=400)
+
+        try:
+            student = Candidate.objects.get(id=int(user_id), role='student')
+        except (Candidate.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Student not found'}, status=404)
+
+        projects = ProjectIdea.objects.filter(
+            student=student,
+            project_type='uploaded'
+        ).order_by('-created_at')
+
+        projects_list = []
+        for project in projects:
+            project_data = {
+                'id': project.id,
+                'title': project.title,
+                'description': project.description,
+                'category': project.category,
+                'technologies': project.technologies.split(',') if project.technologies else [],
+                'github_url': project.github_url,
+                'live_url': project.live_url,
+                'additional_notes': project.additional_notes,
+                'status': 'Under Review' if project.assigned_mentor else 'Submitted',
+                'rating': float(project.rating) if project.rating else None,
+                'mentor_feedback': project.mentor_review_notes,
+                'created_at': project.created_at.isoformat()
+            }
+            projects_list.append(project_data)
+
+        return JsonResponse(projects_list, safe=False)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def submit_project_feedback(request, project_id):
+    """Submit feedback for an uploaded project"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        mentor_id = data.get('mentor_id')
+        feedback = data.get('feedback')
+        rating = data.get('rating')
+
+        if not all([mentor_id, feedback]):
+            return JsonResponse({'error': 'mentor_id and feedback are required'}, status=400)
+
+        try:
+            mentor = Candidate.objects.get(id=int(mentor_id), role='mentor')
+            project = ProjectIdea.objects.get(id=project_id, project_type='uploaded')
+        except (Candidate.DoesNotExist, ProjectIdea.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Mentor or project not found'}, status=404)
+
+        project.mentor_review_notes = feedback
+        if rating:
+            try:
+                project.rating = float(rating)
+            except ValueError:
+                pass
+        project.assigned_mentor = mentor
+        project.save()
+
+        return JsonResponse({
+            'message': 'Feedback submitted successfully',
+            'project_id': project.id
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def get_mentor_notifications(request):
+    """Get notification counts for mentor dashboard"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'GET required'}, status=405)
+
+    try:
+        mentor_id = request.GET.get('mentor_id')
+        if not mentor_id:
+            return JsonResponse({'error': 'mentor_id parameter required'}, status=400)
+
+        # Validate mentor exists
+        try:
+            mentor = Candidate.objects.get(id=int(mentor_id), role='mentor')
+        except (Candidate.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Mentor not found'}, status=404)
+
+        # Count pending connection requests
+        pending_requests = ChatMessage.objects.filter(
+            receiver_id=str(mentor_id),
+            sender_type='student',
+            status='pending',
+            message_type='text'
+        ).count()
+
+        # Count pending booking requests
+        pending_bookings = BookedSession.objects.filter(
+            mentor_id=mentor_id,
+            status='pending'
+        ).count()
+
+        # Count new project ideas from connected mentees (only 'idea' type, not uploaded projects)
+        new_projects = ProjectIdea.objects.filter(
+            assigned_mentor_id=mentor_id,
+            project_type='idea',
+            mentor_review_notes__isnull=True
+        ).count()
+        
+        logger.info(f"Found {new_projects} new projects for mentor {mentor_id}")
+
+        # Count unread messages
+        unread_messages = 0
+        try:
+            # Get all accepted connections for this mentor
+            accepted_connections = ChatMessage.objects.filter(
+                receiver_id=str(mentor_id),
+                sender_type='student',
+                status='accepted',
+                message_type='text'
+            )
+            
+            for connection in accepted_connections:
+                # Check conversation for unread messages
+                conversation = ChatMessage.objects.filter(
+                    sender_id=connection.sender_id,
+                    receiver_id=str(mentor_id),
+                    sender_type='student',
+                    is_conversation=True
+                ).first()
+                
+                if conversation and conversation.conversation_data:
+                    # Count messages from student that are unread
+                    for msg in conversation.conversation_data:
+                        if msg.get('sender_type') == 'student' and not msg.get('is_read', False):
+                            unread_messages += 1
+        except Exception as e:
+            logger.warning(f"Error counting unread messages: {str(e)}")
+
+        return JsonResponse({
+            'pending_requests': pending_requests,
+            'pending_bookings': pending_bookings,
+            'new_projects': new_projects,
+            'unread_messages': unread_messages,
+            'total_notifications': pending_requests + pending_bookings + new_projects + unread_messages
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting mentor notifications: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
